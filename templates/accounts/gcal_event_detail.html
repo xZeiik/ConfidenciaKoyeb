@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h3 class="h4 mb-0">Detalle del evento</h3>
+      <small class="text-muted">Google Calendar</small>
+    </div>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-secondary"
+         href="{% url 'accounts:gcal_eventos' %}">
+        <i class="bi bi-arrow-left"></i> Volver a eventos
+      </a>
+      <a class="btn btn-primary"
+         href="{% url 'accounts:gcal_event_edit' event.id %}?calendar_id={{ calendar_id }}">
+        <i class="bi bi-pencil-square"></i> Editar
+      </a>
+      <form method="post" action="{% url 'accounts:gcal_event_delete' event.id %}"
+            onsubmit="return confirm('¿Eliminar este evento?');">
+        {% csrf_token %}
+        <input type="hidden" name="calendar_id" value="{{ calendar_id }}">
+        <button type="submit" class="btn btn-danger">
+          <i class="bi bi-trash"></i> Eliminar
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12">
+          <h4 class="mb-1">{{ event.summary|default:"(Sin título)" }}</h4>
+          {% if event.htmlLink %}
+            <a class="small" href="{{ event.htmlLink }}" target="_blank">
+              <i class="bi bi-box-arrow-up-right"></i> Ver en Google Calendar
+            </a>
+          {% endif %}
+        </div>
+
+        <div class="col-12 col-md-6">
+          <div class="mb-2">
+            <div class="text-muted small">Inicio</div>
+            <div class="fw-medium">{{ start_txt }}</div>
+          </div>
+          <div class="mb-2">
+            <div class="text-muted small">Término</div>
+            <div class="fw-medium">{{ end_txt }}</div>
+          </div>
+          <div class="mb-2">
+            <div class="text-muted small">Visibilidad</div>
+            <span class="badge text-bg-light">{{ event.visibility|default:"default" }}</span>
+          </div>
+          {% if event.location %}
+          <div class="mb-2">
+            <div class="text-muted small">Ubicación</div>
+            <div class="fw-medium">{{ event.location }}</div>
+          </div>
+          {% endif %}
+          {% if event.hangoutLink %}
+          <div class="mb-2">
+            <div class="text-muted small">Meet</div>
+            <a href="{{ event.hangoutLink }}" target="_blank">{{ event.hangoutLink }}</a>
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="col-12 col-md-6">
+          <div class="mb-2">
+            <div class="text-muted small">Asistentes</div>
+            {% if attendees %}
+              <ul class="list-unstyled mb-0">
+                {% for a in attendees %}
+                  <li>
+                    <i class="bi bi-person-circle me-1"></i>
+                    {{ a.email }}{% if a.responseStatus %} <span class="text-muted">({{ a.responseStatus }})</span>{% endif %}
+                  </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="text-muted">—</div>
+            {% endif %}
+          </div>
+          <div class="mb-2">
+            <div class="text-muted small">Recordatorios</div>
+            {% if reminders.useDefault %}
+              <span class="text-muted">Predeterminados</span>
+            {% else %}
+              {% if reminders.overrides %}
+                <ul class="list-unstyled mb-0">
+                  {% for r in reminders.overrides %}
+                    <li>
+                      {{ r.method }} — {{ r.minutes }} min antes
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
+
+        {% if event.description %}
+        <div class="col-12">
+          <div class="text-muted small mb-1">Descripción</div>
+          <div class="border rounded p-3 bg-light-subtle">
+            {{ event.description|linebreaks }}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

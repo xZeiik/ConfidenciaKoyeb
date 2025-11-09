@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="h4 mb-0">Editar evento</h3>
+    <a class="btn btn-outline-secondary" href="{% url 'accounts:gcal_event_detail' event.id %}?calendar_id={{ calendar_id }}">
+      <i class="bi bi-arrow-left"></i> Volver
+    </a>
+  </div>
+
+  <form method="post" class="card border-0 shadow-sm">
+    {% csrf_token %}
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <label class="form-label">Título</label>
+          <input type="text" name="summary" class="form-control" value="{{ initial.summary }}" required>
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">Ubicación</label>
+          <input type="text" name="location" class="form-control" value="{{ initial.location }}">
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Descripción</label>
+          <textarea name="description" class="form-control" rows="3">{{ initial.description }}</textarea>
+        </div>
+
+        <div class="col-12 col-md-4 d-flex align-items-center">
+          <div class="form-check mt-4">
+            <input class="form-check-input" type="checkbox" name="all_day" id="all_day" {% if initial.all_day %}checked{% endif %}>
+            <label class="form-check-label" for="all_day">Todo el día</label>
+          </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">Inicio</label>
+          <input type="date" name="start_date" class="form-control mb-2" value="{{ initial.start_date }}">
+          <input type="datetime-local" name="start_dt" class="form-control" value="{{ initial.start_dt|slice:':16' }}">
+        </div>
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">Término</label>
+          <input type="date" name="end_date" class="form-control mb-2" value="{{ initial.end_date }}">
+          <input type="datetime-local" name="end_dt" class="form-control" value="{{ initial.end_dt|slice:':16' }}">
+        </div>
+
+        <div class="col-12 col-md-8">
+          <label class="form-label">Invitados (separados por coma)</label>
+          <input type="text" name="attendees" class="form-control" value="{{ initial.attendees }}">
+        </div>
+
+        <div class="col-12 col-md-4">
+          <label class="form-label">Visibilidad</label>
+          <select name="visibility" class="form-select">
+            <option value="default" {% if initial.visibility == "default" %}selected{% endif %}>Predeterminada</option>
+            <option value="public" {% if initial.visibility == "public" %}selected{% endif %}>Pública</option>
+            <option value="private" {% if initial.visibility == "private" %}selected{% endif %}>Privada</option>
+            <option value="confidential" {% if initial.visibility == "confidential" %}selected{% endif %}>Confidencial</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Recordatorio (popup, minutos)</label>
+          <input type="number" min="0" name="reminder_popup" class="form-control" placeholder="Ej: 30">
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label">Recordatorio (email, minutos)</label>
+          <input type="number" min="0" name="reminder_email" class="form-control" placeholder="Ej: 60">
+        </div>
+      </div>
+    </div>
+    <div class="card-footer bg-white d-flex justify-content-end gap-2">
+      <button type="submit" class="btn btn-success">
+        <i class="bi bi-check2-square"></i> Guardar cambios
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+(function(){
+  const allDay = document.getElementById('all_day');
+  const startDate = document.querySelector('input[name="start_date"]');
+  const endDate   = document.querySelector('input[name="end_date"]');
+  const startDt   = document.querySelector('input[name="start_dt"]');
+  const endDt     = document.querySelector('input[name="end_dt"]');
+
+  function toggleFields(){
+    const isAllDay = allDay.checked;
+    startDate.disabled = !isAllDay;
+    endDate.disabled   = !isAllDay;
+    startDt.disabled   = isAllDay;
+    endDt.disabled     = isAllDay;
+  }
+  allDay?.addEventListener('change', toggleFields);
+  toggleFields();
+})();
+</script>
+{% endblock %}

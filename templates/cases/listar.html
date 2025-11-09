@@ -1,0 +1,19 @@
+{% load static %}
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Casos</title></head>
+<body>
+  <h1>Casos</h1>
+  <p><a href="{% url 'cases:crear' %}">+ Nuevo caso</a></p>
+  <ul>
+    {% for c in casos %}
+      <li>
+        <a href="{% url 'cases:detalle' c.pk %}">{{ c.titulo }}</a>
+        — {{ c.cliente.nombre_completo }} — {{ c.get_estado_display }}
+      </li>
+    {% empty %}
+      <li>No hay casos</li>
+    {% endfor %}
+  </ul>
+</body>
+</html>

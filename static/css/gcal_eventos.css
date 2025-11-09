@@ -1,0 +1,89 @@
+/* ====== Variables y base ====== */
+:root {
+  --gc-card-radius: 14px;
+  --gc-ring: 2px;
+  --gc-accent: #0d6efd; /* se armoniza con bootstrap primary */
+  --gc-muted: #6b7280;
+  --gc-muted-2: #9ca3af;
+}
+
+.theme-dark :root,
+.theme-dark {
+  --gc-muted: #cbd5e1;
+  --gc-muted-2: #94a3b8;
+}
+
+/* ====== Contenedor ====== */
+.gcal-wrap .page-header .h4 {
+  letter-spacing: .2px;
+}
+
+.gcal-wrap .page-header .text-muted {
+  color: var(--gc-muted-2) !important;
+}
+
+/* ====== Cards de evento ====== */
+.event-card {
+  border-radius: var(--gc-card-radius);
+  position: relative;
+  overflow: hidden;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.event-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--gc-accent), #6a9cff);
+  opacity: .9;
+}
+
+.event-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(0,0,0,.08);
+}
+
+.event-title {
+  font-size: 1.05rem;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.truncate {
+  display: inline-block;
+  max-width: 20ch;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.event-datetime .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+/* ====== Estado vacío ====== */
+.empty-state .empty-ico {
+  width: 72px; height: 72px;
+  display: grid; place-items: center;
+  background: rgba(13, 110, 253, .08);
+  border-radius: 16px;
+}
+
+.empty-state .empty-ico i {
+  font-size: 32px;
+}
+
+/* ====== Soporte tema oscuro ====== */
+.theme-dark .event-card { background: #0f172a; }
+.theme-dark .card-footer.bg-white { background: transparent !important; }
+.theme-dark .text-muted { color: var(--gc-muted) !important; }
+
+/* ====== Botones compactos ====== */
+.btn.btn-sm { border-radius: 9999px; }
+
+/* ====== Dropdown refinado ====== */
+.dropdown-menu {
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(0,0,0,.12);
+}

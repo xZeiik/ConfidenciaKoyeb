@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h2><i class="bi bi-files"></i> Archivos recientes</h2>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Caso</th><th>Cliente</th><th>Archivo</th><th>Modificado</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for a in archivos %}
+    <tr>
+      <td>{{ a.caso.codigo_caso }}</td>
+      <td>{{ a.caso.cliente.nombre_completo }}</td>
+      <td>{{ a.nombre }}</td>
+      <td>{{ a.modificado_en|date:"d/m/Y H:i" }}</td>
+      <td>
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'cases:descargar_archivo_caso' a.drive_file_id %}">
+          <i class="bi bi-download"></i>
+        </a>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5" class="text-center">No hay archivos subidos.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

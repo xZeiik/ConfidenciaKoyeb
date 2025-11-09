@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h3 class="h4 mb-1">Crear evento</h3>
+      <p class="text-muted small mb-0">Agenda un nuevo evento en tu Google Calendar.</p>
+    </div>
+    <a href="{% url 'accounts:gcal_eventos' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i> Volver
+    </a>
+  </div>
+
+  {% if messages %}
+    <div class="mb-3">
+      {% for m in messages %}
+        <div class="alert alert-{{ m.tags }} mb-2" role="alert">{{ m }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <form method="post" action="{% url 'accounts:gcal_crear_evento' %}" class="row g-3" novalidate>
+        {% csrf_token %}
+
+        <!-- Básicos -->
+        <div class="col-12 col-lg-6">
+          <label class="form-label">Título del evento</label>
+          <input type="text" name="summary" class="form-control" placeholder="Ej. Reunión con cliente" required>
+          <div class="form-text">Obligatorio.</div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+          <label class="form-label">Ubicación (opcional)</label>
+          <input type="text" name="location" class="form-control" placeholder="Ej. Sala 3, Oficina Central / Google Meet">
+        </div>
+
+        <div class="col-12">
+          <label class="form-label">Descripción (opcional)</label>
+          <textarea name="description" class="form-control" rows="3" placeholder="Notas, links, agenda…"></textarea>
+        </div>
+
+        <!-- Fechas y horas -->
+        <div class="col-12">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="allDaySwitch" name="all_day">
+            <label class="form-check-label" for="allDaySwitch">Evento de día completo</label>
+          </div>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Inicio</label>
+          <input type="datetime-local" name="start_dt" id="start_dt" class="form-control" required>
+          <input type="date" name="start_date" id="start_date" class="form-control d-none">
+          <div class="form-text">Zona horaria: America/Santiago.</div>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Fin</label>
+          <input type="datetime-local" name="end_dt" id="end_dt" class="form-control" required>
+          <input type="date" name="end_date" id="end_date" class="form-control d-none">
+        </div>
+
+        <!-- Invitados -->
+        <div class="col-12">
+          <label class="form-label">Invitados (opcional)</label>
+          <textarea name="attendees" class="form-control" rows="2" placeholder="Correos separados por coma, ej: persona@dominio.cl, otra@dominio.com"></textarea>
+          <div class="form-text">Se enviarán invitaciones desde Google Calendar.</div>
+        </div>
+
+        <!-- Recordatorios -->
+        <div class="col-12 col-md-6">
+          <label class="form-label">Recordatorio por notificación (minutos)</label>
+          <select name="reminder_popup" class="form-select">
+            <option value="">Sin recordatorio</option>
+            <option value="10">10 min</option>
+            <option value="30">30 min</option>
+            <option value="60">60 min</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Recordatorio por email (minutos)</label>
+          <select name="reminder_email" class="form-select">
+            <option value="">Sin recordatorio</option>
+            <option value="30">30 min</option>
+            <option value="60">60 min</option>
+            <option value="1440">1 día</option>
+          </select>
+        </div>
+
+        <!-- Opciones -->
+        <div class="col-12 col-md-6">
+          <label class="form-label">Visibilidad</label>
+          <select name="visibility" class="form-select">
+            <option value="">Predeterminada</option>
+            <option value="private">Privado</option>
+            <option value="public">Público</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Calendario</label>
+          <select name="calendar_id" class="form-select">
+            <option value="primary" selected>Mi Calendario (primary)</option>
+            <!-- Si más adelante pasas una lista de calendarios, puedes iterarla:
+            {% for cal in calendars %}
+              <option value="{{ cal.id }}">{{ cal.summary }}</option>
+            {% endfor %}
+            -->
+          </select>
+        </div>
+
+        <!-- Acciones -->
+        <div class="col-12 d-flex justify-content-end gap-2">
+          <a href="{% url 'accounts:gcal_eventos' %}" class="btn btn-secondary">Cancelar</a>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-calendar-plus"></i> Crear evento
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Script pequeño para alternar día completo y validar fechas -->
+<script>
+  (function(){
+    const allDay = document.getElementById('allDaySwitch');
+    const startDT = document.getElementById('start_dt');
+    const endDT   = document.getElementById('end_dt');
+    const startD  = document.getElementById('start_date');
+    const endD    = document.getElementById('end_date');
+
+    function toggleAllDay(){
+      const isAllDay = allDay.checked;
+      // Mostrar/ocultar inputs correctos
+      startDT.classList.toggle('d-none', isAllDay);
+      endDT.classList.toggle('d-none', isAllDay);
+      startD.classList.toggle('d-none', !isAllDay);
+      endD.classList.toggle('d-none', !isAllDay);
+
+      // Requeridos correctos
+      startDT.required = !isAllDay;
+      endDT.required   = !isAllDay;
+      startD.required  = isAllDay;
+      endD.required    = isAllDay;
+    }
+
+    function ensureEndAfterStart(){
+      // Valida que fin >= inicio (solo modo datetime)
+      if (!allDay.checked && startDT.value && endDT.value) {
+        if (new Date(endDT.value) < new Date(startDT.value)) {
+          endDT.setCustomValidity('La fecha/hora de término no puede ser anterior al inicio.');
+        } else {
+          endDT.setCustomValidity('');
+        }
+      }
+    }
+
+    allDay?.addEventListener('change', toggleAllDay);
+    startDT?.addEventListener('change', ensureEndAfterStart);
+    endDT?.addEventListener('change', ensureEndAfterStart);
+
+    // Estado inicial
+    toggleAllDay();
+  })();
+</script>
+{% endblock %}

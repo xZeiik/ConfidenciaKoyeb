@@ -1,0 +1,222 @@
+/* === Variables base (modo claro) === */
+:root {
+  --dc-card-bg: #ffffff;
+  --dc-input-bg: #ffffff;
+  --dc-text: #111827;
+  --dc-muted: #6b7280;
+  --dc-border: rgba(17, 24, 39, 0.12);
+  --dc-focus: #2563eb;
+  --dc-success: #16a34a;
+  --dc-danger: #dc2626;
+}
+
+/* === Modo oscuro (compatible con distintos toggles) === */
+html[data-bs-theme="dark"],
+body[data-bs-theme="dark"],
+html[data-theme="dark"],
+body[data-theme="dark"],
+html.dark,
+body.dark,
+html.dark-mode,
+body.dark-mode,
+html.theme-dark,
+body.theme-dark {
+  --dc-card-bg: #111827 !important;
+  --dc-input-bg: #0b1220 !important;
+  --dc-text: #e5e7eb !important;
+  --dc-muted: #9ca3af !important;
+  --dc-border: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* === Estructura general === */
+.detalle-cuenta {
+  padding: 1.5rem 1rem;
+}
+
+.detalle-cuenta .page-header h3 {
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  margin-bottom: 0.3rem;
+  color: var(--dc-text);
+}
+
+.detalle-cuenta .page-header p {
+  color: var(--dc-muted);
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+/* === Cards === */
+.detalle-cuenta .card {
+  background: var(--dc-card-bg);
+  border: 1px solid var(--dc-border);
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(17, 24, 39, 0.05);
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.detalle-cuenta .card h5 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--dc-text);
+  margin-bottom: 1rem;
+}
+
+/* === Formularios === */
+.detalle-cuenta .form-label {
+  font-weight: 500;
+  color: var(--dc-text);
+  margin-bottom: 0.35rem;
+}
+
+.detalle-cuenta .form-control {
+  background: var(--dc-input-bg);
+  color: var(--dc-text);
+  border: 1px solid var(--dc-border);
+  border-radius: 10px;
+  padding: 0.55rem 0.85rem;
+  transition: all 0.15s ease;
+}
+
+.detalle-cuenta .form-control:focus {
+  border-color: var(--dc-focus);
+  box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+  outline: none;
+}
+
+.detalle-cuenta .form-text {
+  color: var(--dc-muted);
+  font-size: 0.85rem;
+}
+
+/* === Botones === */
+.detalle-cuenta .btn {
+  border-radius: 10px;
+  padding: 0.55rem 0.9rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.detalle-cuenta .btn-primary {
+  background: var(--dc-focus);
+  border: 1px solid var(--dc-focus);
+}
+
+.detalle-cuenta .btn-primary:hover {
+  background: #1e40af;
+  border-color: #1e40af;
+}
+
+.detalle-cuenta .btn-success {
+  background: var(--dc-success);
+  border-color: var(--dc-success);
+}
+
+.detalle-cuenta .btn-success:hover {
+  background: #15803d;
+}
+
+.detalle-cuenta .btn-light.border {
+  background: var(--dc-card-bg);
+  border: 1px solid var(--dc-border);
+  color: var(--dc-text);
+}
+
+.detalle-cuenta .btn-light.border:hover {
+  background: rgba(17, 24, 39, 0.03);
+}
+
+/* === Alertas === */
+.detalle-cuenta .alert {
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+}
+
+.detalle-cuenta .alert-success {
+  background: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.detalle-cuenta .alert-error,
+.detalle-cuenta .alert-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* === Layout responsivo === */
+@media (min-width: 992px) {
+  .detalle-cuenta {
+    padding: 2rem 3rem;
+  }
+  .detalle-cuenta .card-body {
+    padding: 1.5rem 1.8rem;
+  }
+}
+
+/* === Inputs deshabilitados (modo lectura) === */
+.detalle-cuenta input[disabled],
+.detalle-cuenta input[readonly] {
+  background-color: rgba(229, 231, 235, 0.4);
+  color: var(--dc-muted);
+  cursor: not-allowed;
+}
+
+/* === Acciones === */
+.detalle-cuenta .actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+
+/* === Animaciones sutiles === */
+.detalle-cuenta .card {
+  transform: translateY(0);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.detalle-cuenta .card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(17, 24, 39, 0.08);
+}
+
+/* ====== Cambiar contraseña ====== */
+.detalle-cuenta .password-card .form-label {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+
+.detalle-cuenta .password-field {
+  position: relative;
+}
+
+.detalle-cuenta .password-field .form-control {
+  padding-right: 2.3rem; /* espacio para el ojo */
+}
+
+/* Botón ojo (show/hide) */
+.detalle-cuenta .toggle-password {
+  position: absolute;
+  right: .45rem;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  padding: .25rem .35rem;
+  line-height: 1;
+  color: var(--dc-muted);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.detalle-cuenta .toggle-password:hover {
+  background: rgba(17,24,39,.06);
+}
+html[data-bs-theme="dark"] .detalle-cuenta .toggle-password,
+body[data-theme="dark"] .detalle-cuenta .toggle-password,
+html.dark .detalle-cuenta .toggle-password {
+  background: transparent;
+}

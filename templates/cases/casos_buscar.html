@@ -1,0 +1,156 @@
+{# templates/cases/casos_buscar.html #}
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container-fluid px-3 px-md-4">
+  <div class="card shadow-sm border-0">
+    <div class="card-header border-0 pt-3 pb-0">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <h3 class="h4 mb-1">Buscar casos</h3>
+          {% if q %}
+            <p class="text-muted small mb-0">
+              Mostrando <strong>{{ resultados.paginator.count }}</strong> resultado{{ resultados.paginator.count|pluralize }}
+              para <span class="badge rounded-pill text-bg-light">{{ q }}</span>
+            </p>
+          {% else %}
+            <p class="text-muted small mb-0">Busca por <em>RUT</em>, <em>nombre</em> o <em>código/ID</em> de caso.</p>
+          {% endif %}
+        </div>
+        <form class="d-none d-md-block" method="get" action="{% url 'cases:casos_buscar' %}">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text border-0"><i class="bi bi-search"></i></span>
+            <input class="form-control border-0" type="search" name="q"
+                   placeholder="RUT, nombre o código/ID"
+                   value="{{ q|default:'' }}" />
+            {% if q %}
+              <a class="btn btn-outline-secondary" href="{% url 'cases:casos_buscar' %}">Limpiar</a>
+            {% endif %}
+            <button class="btn btn-primary" type="submit">Buscar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card-body">
+      <form class="d-md-none mb-3" method="get" action="{% url 'cases:casos_buscar' %}">
+        <div class="input-group">
+          <span class="input-group-text bg-light border-0"><i class="bi bi-search"></i></span>
+          <input class="form-control bg-light border-0" type="search" name="q"
+                 placeholder="RUT, nombre o código/ID"
+                 value="{{ q|default:'' }}" />
+          <button class="btn btn-primary" type="submit">Buscar</button>
+        </div>
+      </form>
+
+      {% if q and resultados %}
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Código</th>
+                <th>Título</th>
+                <th>Cliente</th>
+                <th>RUT</th>
+                <th>Estado</th>
+                <th>Categoría</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in resultados %}
+              <tr class="table-row-hover cursor-pointer"
+                  data-href="{% url 'cases:archivos_caso' caso_id=c.id %}">
+                <td>
+                  <a class="link-primary fw-semibold text-decoration-none"
+                    href="{% url 'cases:archivos_caso' caso_id=c.id %}">
+                    {{ c.codigo_caso }}
+                  </a>
+                </td>
+                <td>{{ c.titulo }}</td>
+                <td>{{ c.cliente.nombre_completo }}</td>
+                <td class="text-nowrap">{{ c.cliente.rut }}</td>
+                <td>
+                  {% if c.estado == 'ABIERTO' %}
+                    <span class="badge text-bg-success">Abierto</span>
+                  {% elif c.estado == 'EN_PROCESO' %}
+                    <span class="badge text-bg-warning text-dark">En proceso</span>
+                  {% else %}
+                    <span class="badge text-bg-secondary">Cerrado</span>
+                  {% endif %}
+                </td>
+                <td><span class="badge text-bg-light border">{{ c.get_categoria_display }}</span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        {% if resultados.has_other_pages %}
+        <nav class="d-flex justify-content-between align-items-center mt-3" aria-label="Resultados">
+          <span class="text-muted small">
+            Página {{ resultados.number }} de {{ resultados.paginator.num_pages }}
+          </span>
+          <ul class="pagination pagination-sm mb-0">
+            {% if resultados.has_previous %}
+              <li class="page-item">
+                <a class="page-link" href="?q={{ q }}&page={{ resultados.previous_page_number }}">«</a>
+              </li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">«</span></li>
+            {% endif %}
+
+            {% for p in resultados.paginator.page_range %}
+              {% if p == resultados.number %}
+                <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+              {% elif p <= 2 %}
+                <li class="page-item"><a class="page-link" href="?q={{ q }}&page={{ p }}">{{ p }}</a></li>
+              {% elif p > resultados.paginator.num_pages|add:"-2" %}
+                <li class="page-item"><a class="page-link" href="?q={{ q }}&page={{ p }}">{{ p }}</a></li>
+              {% elif p >= resultados.number|add:"-1" and p <= resultados.number|add:"1" %}
+                <li class="page-item"><a class="page-link" href="?q={{ q }}&page={{ p }}">{{ p }}</a></li>
+              {% elif p == 3 or p == resultados.paginator.num_pages|add:"-2" %}
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+              {% endif %}
+            {% endfor %}
+
+            {% if resultados.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?q={{ q }}&page={{ resultados.next_page_number }}">»</a>
+              </li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">»</span></li>
+            {% endif %}
+          </ul>
+        </nav>
+        {% endif %}
+
+      {% elif q %}
+        <div class="text-center py-5">
+          <div class="mb-2"><i class="bi bi-search fs-1 text-muted"></i></div>
+          <h5 class="mb-1">Sin resultados</h5>
+          <p class="text-muted mb-3">No encontramos coincidencias para <strong>{{ q }}</strong>.</p>
+          <a class="btn btn-outline-secondary" href="{% url 'cases:casos_buscar' %}">Nueva búsqueda</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<style>
+  .table-row-hover:hover { background-color: rgba(13,110,253,.05); }
+  .cursor-pointer { cursor: pointer; }
+</style>
+
+<script>
+  // Hace clickeables las filas que tengan data-href, evitando conflictos si se hace clic en un <a>
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('tr[data-href]').forEach(function (row) {
+      row.addEventListener('click', function (e) {
+        if (e.target.closest('a, button, input, label')) return;
+        window.location = row.dataset.href;
+      });
+    });
+  });
+</script>
+
+{% endblock %}

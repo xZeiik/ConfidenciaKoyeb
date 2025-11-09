@@ -1,0 +1,125 @@
+/* ===== Variables por defecto (modo claro) ===== */
+:root {
+  --ca-card-bg: #ffffff;
+  --ca-input-bg: #ffffff;
+  --ca-text: #111827;
+  --ca-muted: #6b7280;
+  --ca-border: rgba(17, 24, 39, .12);
+  --ca-focus: #4f46e5;
+}
+
+/* ===== Sobrescritura SOLO cuando tu app está en modo oscuro ===== */
+/* Usa el que aplique en tu proyecto (o deja ambos) */
+html[data-theme="dark"],
+body.theme-dark {
+  --ca-card-bg: #111827;
+  --ca-input-bg: #0b1220;
+  --ca-text: #e5e7eb;
+  --ca-muted: #9ca3af;
+  --ca-border: rgba(255, 255, 255, .08);
+}
+
+/* ===== Estructura de la página ===== */
+.crear-abogado .page-header h3 {
+  font-weight: 700;
+  letter-spacing: .2px;
+  margin: 0;
+}
+
+.crear-abogado .page-header p {
+  margin: .25rem 0 0;
+  color: var(--ca-muted);
+  font-size: .92rem;
+}
+
+.crear-abogado .form-card {
+  background: var(--ca-card-bg);
+  border: 1px solid var(--ca-border);
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(17, 24, 39, .06);
+  overflow: hidden;
+}
+
+.crear-abogado .form-card .card-body {
+  padding: 20px 22px;
+}
+@media (min-width: 992px) {
+  .crear-abogado .form-card .card-body { padding: 26px 28px; }
+}
+
+/* Labels */
+.crear-abogado .form-label {
+  font-weight: 600;
+  margin-bottom: .35rem;
+  color: var(--ca-text);
+}
+
+/* Inputs (también si vienen con .form-control) */
+.crear-abogado input[type="text"],
+.crear-abogado input[type="email"],
+.crear-abogado input[type="password"],
+.crear-abogado input[type="search"],
+.crear-abogado select,
+.crear-abogado textarea,
+.crear-abogado .form-control {
+  display: block;
+  width: 100%;
+  background: var(--ca-input-bg);
+  color: var(--ca-text);
+  border: 1px solid var(--ca-border);
+  border-radius: 10px;
+  padding: .55rem .8rem;
+  line-height: 1.25;
+  transition: box-shadow .15s ease, border-color .15s ease, background-color .2s;
+}
+
+/* Focus */
+.crear-abogado input:focus,
+.crear-abogado select:focus,
+.crear-abogado textarea:focus,
+.crear-abogado .form-control:focus {
+  border-color: var(--ca-focus);
+  outline: 0;
+  box-shadow: 0 0 0 .2rem rgba(79, 70, 229, .15);
+}
+
+/* Help/errores */
+.crear-abogado .form-text { color: var(--ca-muted); }
+.crear-abogado .errorlist { margin: .35rem 0 0; padding-left: 0; list-style: none; }
+.crear-abogado .errorlist li { color: #dc2626; font-size: .88rem; }
+
+/* Footer de acciones */
+.crear-abogado .actions {
+  padding-top: .5rem;
+  display: flex;
+  gap: .5rem;
+  justify-content: flex-end;
+}
+
+.crear-abogado .btn {
+  border-radius: 10px;
+  padding: .55rem .9rem;
+}
+
+.crear-abogado .btn-success { background: #16a34a; border-color: #169a47; }
+.crear-abogado .btn-success:hover { filter: brightness(0.98); }
+.crear-abogado .btn-light.border { background: #fff; }
+.crear-abogado .btn-back { border-radius: 10px; padding: .45rem .7rem; }
+
+
+
+html[data-bs-theme="dark"],
+body[data-bs-theme="dark"],
+/* Data-theme genérico */
+html[data-theme="dark"],
+body[data-theme="dark"],
+/* Clases típicas */
+html.dark, body.dark,
+html.dark-mode, body.dark-mode,
+html.theme-dark, body.theme-dark {
+  --ca-card-bg: #111827 !important;
+  --ca-input-bg: #0b1220 !important;
+  --ca-text: #e5e7eb !important;
+  --ca-muted: #9ca3af !important;
+  --ca-border: rgba(255, 255, 255, .08) !important;
+}

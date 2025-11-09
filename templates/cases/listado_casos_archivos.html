@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<h2><i class="bi bi-folder2-open"></i> Archivos de Casos</h2>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Código</th><th>Título</th><th>Cliente</th><th>Responsable</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for caso in casos %}
+    <tr>
+      <td>{{ caso.codigo_caso }}</td>
+      <td>{{ caso.titulo }}</td>
+      <td>{{ caso.cliente.nombre_completo }}</td>
+      <td>{{ caso.abogado_responsable }}</td>
+      <td>
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'cases:archivos_caso' caso.id %}">
+          <i class="bi bi-folder"></i> Abrir
+        </a>
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'cases:archivos_caso' caso.id %}?sync=1">
+          <i class="bi bi-arrow-repeat"></i> Sync
+        </a>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5" class="text-center">No tienes casos asignados.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

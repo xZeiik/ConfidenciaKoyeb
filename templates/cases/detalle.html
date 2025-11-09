@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}{{ caso.titulo }} · Caso {{ caso.codigo_caso }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4">
+  <div class="card shadow-sm border-0 mt-2">
+    <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+      <div>
+        <h3 class="h4 mb-0">{{ caso.titulo }}</h3>
+        <small class="text-muted">Código: <strong>{{ caso.codigo_caso }}</strong></small>
+      </div>
+      <a href="{% url 'cases:casos_buscar' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> Volver
+      </a>
+    </div>
+
+    <div class="card-body">
+      <dl class="row mb-0">
+        <dt class="col-sm-3">Cliente</dt>
+        <dd class="col-sm-9">
+          {{ caso.cliente.nombre_completo }} <span class="text-muted">({{ caso.cliente.rut }})</span>
+        </dd>
+
+        <dt class="col-sm-3">Abogado responsable</dt>
+        <dd class="col-sm-9">
+          {% if caso.abogado_responsable %}
+            {{ caso.abogado_responsable.get_full_name|default:caso.abogado_responsable.username }}
+          {% else %}
+            <span class="text-muted">No asignado</span>
+          {% endif %}
+        </dd>
+
+        <dt class="col-sm-3">Estado</dt>
+        <dd class="col-sm-9">
+          {% if caso.estado == 'ABIERTO' %}
+            <span class="badge text-bg-success">{{ caso.get_estado_display }}</span>
+          {% elif caso.estado == 'EN_PROCESO' %}
+            <span class="badge text-bg-warning text-dark">{{ caso.get_estado_display }}</span>
+          {% else %}
+            <span class="badge text-bg-secondary">{{ caso.get_estado_display }}</span>
+          {% endif %}
+        </dd>
+
+        <dt class="col-sm-3">Categoría</dt>
+        <dd class="col-sm-9">
+          <span class="badge text-bg-light border">{{ caso.get_categoria_display }}</span>
+        </dd>
+
+        <dt class="col-sm-3">Descripción</dt>
+        <dd class="col-sm-9">{{ caso.descripcion|default:"—"|linebreaks }}</dd>
+
+        <dt class="col-sm-3">Creado en</dt>
+        <dd class="col-sm-9">{{ caso.creado_en|date:"d/m/Y H:i" }}</dd>
+      </dl>
+    </div>
+
+    <div class="card-footer bg-white border-0 text-end">
+      <a href="{% url 'cases:casos_buscar' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Volver a la búsqueda
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

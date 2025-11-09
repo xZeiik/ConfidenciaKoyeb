@@ -1,0 +1,44 @@
+# --- Núcleo Django ---
+Django>=5.0
+gunicorn
+whitenoise
+dj-database-url
+psycopg[binary]
+python-dotenv
+
+# --- Frameworks y extensiones ---
+djangorestframework
+django-filter
+django-widget-tweaks
+
+# --- Autenticación y seguridad ---
+oauthlib
+requests-oauthlib
+rsa
+
+# --- Cliente Google API / Drive / Auth ---
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-auth-oauthlib
+google-api-core
+googleapis-common-protos
+httplib2
+uritemplate
+proto-plus
+protobuf
+
+# --- Dependencias secundarias (mantenidas para compatibilidad) ---
+cachetools
+certifi
+charset-normalizer
+idna
+pyasn1
+pyasn1_modules
+pyparsing
+requests
+urllib3
+
+
+
+

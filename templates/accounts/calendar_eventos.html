@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center">
+    <h4>Mi Google Calendar</h4>
+    <div>
+      <a href="{% url 'accounts:gcal_conectar' %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-link-45deg"></i> Conectar/Actualizar permisos
+      </a>
+      <a href="{% url 'accounts:gcal_desconectar' %}" class="btn btn-outline-danger btn-sm">
+        <i class="bi bi-x-circle"></i> Desconectar
+      </a>
+    </div>
+  </div>
+
+  <div class="card mt-3 border-0 shadow-sm">
+    <div class="card-body">
+      {% if eventos %}
+        <ul class="list-group list-group-flush">
+          {% for e in eventos %}
+            <li class="list-group-item">
+              <strong>{{ e.summary|default:"(Sin título)" }}</strong><br>
+              <small class="text-muted">
+                {{ e.start.dateTime|default:e.start.date }} → {{ e.end.dateTime|default:e.end.date }}
+              </small>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="text-muted">No hay eventos próximos.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

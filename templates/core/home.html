@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% block title %}Overview · Bufete{% endblock %}
+{% block nav_overview %}active{% endblock %}
+
+{% block content %}
+
+<!-- Panel de avisos -->
+<div class="card notice-banner mb-4 p-3">
+  <div class="d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">Panel de Avisos</h5>
+    <button class="btn btn-light btn-sm"><i class="bi bi-exclamation-circle"></i></button>
+  </div>
+</div>
+
+<!-- Tabs + gráfico de Clientes / Casos / Estado -->
+<div class="card card-tabs-unified mb-4">
+  <div class="card-body p-0">
+    <ul class="nav nav-tabs card-header-tabs px-3 pt-3 mb-0">
+      <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-clientes">Clientes</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-casos">Casos</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-gestion">Estado de Gestión</button></li>
+      <li class="ms-auto pe-3">
+        <div class="btn-group">
+            <!-- Alterna período -->
+            <button id="btnPeriodo" class="btn btn-sm btn-outline-secondary" title="Cambiar a vista anual">
+            Mensual
+            </button>
+        <!-- Alterna tipo de gráfico -->
+        <button id="btnToggleModo" class="btn btn-sm btn-outline-secondary" title="Cambiar tipo de gráfico">
+        <i class="bi bi-graph-up"></i>
+        </button>
+    </div>
+    </li>
+    </ul>
+
+    <div class="tab-content">
+      <!-- Clientes -->
+      <div class="tab-pane fade show active" id="tab-clientes">
+        <div class="chart-box"><canvas id="lineaClientes"></canvas></div>
+      </div>
+
+      <!-- Casos (por prioridad) -->
+      <div class="tab-pane fade" id="tab-casos">
+        <div class="chart-box chart-sm"><canvas id="graficoCasos"></canvas></div>
+        <div class="text-muted small text-center">Casos por prioridad (datos demo)</div>
+      </div>
+
+      <!-- Estado de Gestión (KPIs) -->
+      <div class="tab-pane fade" id="tab-gestion">
+        <div class="row g-3 p-3">
+          <div class="col-6 col-md-3"><div class="card p-3 text-center"><div class="fw-bold">Herencias</div><div class="display-6">{{ dist.herencias|default:12 }}</div></div></div>
+          <div class="col-6 col-md-3"><div class="card p-3 text-center"><div class="fw-bold">Demandas Civiles</div><div class="display-6">{{ dist.civiles|default:9 }}</div></div></div>
+          <div class="col-6 col-md-3"><div class="card p-3 text-center"><div class="fw-bold">Laboral</div><div class="display-6">{{ dist.laboral|default:7 }}</div></div></div>
+          <div class="col-6 col-md-3"><div class="card p-3 text-center"><div class="fw-bold">Asesorías</div><div class="display-6">{{ dist.asesorias|default:5 }}</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NUEVA CARD: Distribución de Casos (separada) -->
+<div class="card mb-4">
+  <div class="card-body">
+    <h6 class="mb-3">Distribución de Casos</h6>
+    <div class="chart-box1 chart-sm">
+      <canvas id="distTipos"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Casos activos -->
+<div class="card">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="mb-0">Casos Activos</h5>
+      <a class="btn btn-sm btn-primary" href="{% url 'cases:crear_caso' %}"><i class="bi bi-plus-lg"></i> Nuevo caso</a>
+    </div>
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Fecha</th>
+            <th>Prioridad</th>
+            <th>Estado</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in casos_activos %}
+          <tr>
+            <td class="d-flex align-items-center gap-2">
+              <i class="bi bi-person-circle fs-5 text-secondary"></i>
+              <div>
+                <div class="fw-medium">{{ c.cliente.nombre_completo }}</div>
+                <small class="text-muted">{{ c.titulo }}</small>
+              </div>
+            </td>
+            <td>{{ c.creado_en|date:"M d, Y" }}</td>
+            <td>
+              {% if c.prioridad == "ALTA" %}
+                <span class="badge text-bg-danger">Alta</span>
+              {% elif c.prioridad == "MEDIA" %}
+                <span class="badge text-bg-warning">Media</span>
+              {% else %}
+                <span class="badge text-bg-success">Baja</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if c.estado == "ABIERTO" %}
+                <span class="badge rounded-pill text-bg-secondary">Abierto</span>
+              {% elif c.estado == "EN_PROCESO" %}
+                <span class="badge rounded-pill text-bg-primary">En proceso</span>
+              {% elif c.estado == "CERRADO" %}
+                <span class="badge rounded-pill text-bg-success">Cerrado</span>
+              {% else %}
+                <span class="badge rounded-pill text-bg-light text-dark">{{ c.get_estado_display|default:c.estado }}</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'cases:archivos_caso' c.id %}"><i class="bi bi-eye"></i></a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-center text-muted py-4">Sin casos activos</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(() => {
+  'use strict';
+
+  // ===== Datos desde Django =====
+  const meses         = JSON.parse('{{ meses_json|escapejs }}');
+  const datosClientes = JSON.parse('{{ datos_clientes_json|escapejs }}');
+  const datosCasos    = JSON.parse('{{ datos_casos_json|escapejs }}');
+  const dist          = JSON.parse('{{ dist_json|escapejs }}');
+
+  // ===== Defaults Chart.js (uniformidad + nitidez sin overflow) =====
+  Chart.defaults.responsive = true;
+  Chart.defaults.maintainAspectRatio = false;
+  Chart.defaults.devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  Chart.defaults.color = '#4b5563';
+  Chart.defaults.font.size = 12;
+  Chart.defaults.plugins.legend.display = false;
+
+  const commonScales = {
+    x: { grid: { display:false }, ticks: { maxRotation:0, autoSkip:true, font:{ size:11 } } },
+    y: { beginAtZero:true, grid: { color:'rgba(0,0,0,.06)' }, ticks:{ font:{ size:11 } } }
+  };
+
+  // ===== Gráfico: Clientes =====
+  const lineaCanvas = document.getElementById('lineaClientes');
+  let chartClientes = null;
+
+  if (lineaCanvas) {
+    chartClientes = new Chart(lineaCanvas, {
+      type: 'line',
+      data: {
+        labels: meses,
+        datasets: [{
+          label: 'Clientes',
+          data: datosClientes,
+          tension: 0.35,
+          borderWidth: 2,
+          pointRadius: 3,
+          borderColor: '#1f39ff',
+          fill: true,
+          backgroundColor: (c) => {
+            const h = c.chart?.canvas?.height || 200;
+            const g = c.chart.ctx.createLinearGradient(0, 0, 0, h);
+            g.addColorStop(0, 'rgba(31,57,255,0.12)');
+            g.addColorStop(1, 'rgba(31,57,255,0.02)');
+            return g;
+          }
+        }]
+      },
+      options: { scales: commonScales }
+    });
+  }
+
+  // ===== Gráfico: Casos por prioridad =====
+  const casosCanvas = document.getElementById('graficoCasos');
+  if (casosCanvas) {
+    new Chart(casosCanvas, {
+      type: 'bar',
+      data: {
+        labels: ['Alta','Media','Baja'],
+        datasets: [{
+          label: 'Cantidad de Casos',
+          data: [8,15,5], // demo
+          backgroundColor: ['#dc3545','#ffc107','#198754'],
+          borderRadius: 10,
+          categoryPercentage: 0.8,
+          barPercentage: 0.9
+        }]
+      },
+      options: {
+        scales: { 
+          ...commonScales,
+          y: { ...commonScales.y, ticks:{ ...commonScales.y.ticks, stepSize:5 } }
+        }
+      }
+    });
+  }
+
+  // ===== Gráfico: Distribución por tipo (id correcto: distTipos) =====
+  const distCanvas = document.getElementById('distTipos');
+  if (distCanvas) {
+    const labels = Object.keys(dist);
+    const values = Object.values(dist);
+
+    new Chart(distCanvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: labels.map(k =>
+            k.toLowerCase().includes('asesor') ? '#1f39ff' : 'rgba(100,116,139,0.12)'
+          ),
+          borderRadius: 12,
+          categoryPercentage: 0.7,
+          barPercentage: 0.9
+        }]
+      },
+      options: {
+        scales: {
+          x: { grid:{ display:false }, ticks:{ font:{ size:11 } } },
+          y: { display:false } // como en el mockup
+        }
+      }
+    });
+  }
+
+  // ===== Botones de interacción =====
+  const btnPeriodo    = document.getElementById('btnPeriodo');     // Mensual <-> Anual
+  const btnToggleModo = document.getElementById('btnToggleModo');  // Línea <-> Barras
+  let modoPeriodo = 'mensual';
+
+  // Helper: agrega por trimestres para "anual" (si no tienes dataset anual del backend)
+  function trimestralizar(labels, data){
+    const outL = [], outD = [];
+    for (let i=0;i<data.length;i+=3){
+      const slice = data.slice(i, i+3);
+      outD.push(slice.reduce((a,b)=>a+b, 0));
+      outL.push(`T${(i/3)+1}`);
+    }
+    return { labels: outL, data: outD };
+  }
+
+  if (btnPeriodo && chartClientes) {
+    btnPeriodo.addEventListener('click', () => {
+      if (modoPeriodo === 'mensual') {
+        const agg = trimestralizar(meses, datosClientes); // simulación "anual"
+        chartClientes.data.labels = agg.labels;
+        chartClientes.data.datasets[0].data = agg.data;
+        modoPeriodo = 'anual';
+        btnPeriodo.textContent = 'Anual';
+        btnPeriodo.title = 'Cambiar a vista mensual';
+      } else {
+        chartClientes.data.labels = meses;
+        chartClientes.data.datasets[0].data = datosClientes;
+        modoPeriodo = 'mensual';
+        btnPeriodo.textContent = 'Mensual';
+        btnPeriodo.title = 'Cambiar a vista anual';
+      }
+      chartClientes.update();
+    });
+  }
+
+  if (btnToggleModo && chartClientes) {
+    btnToggleModo.addEventListener('click', () => {
+      const newType = chartClientes.config.type === 'line' ? 'bar' : 'line';
+      chartClientes.config.type = newType;
+      chartClientes.update();
+      btnToggleModo.innerHTML = newType === 'line'
+        ? '<i class="bi bi-bar-chart"></i>'
+        : '<i class="bi bi-graph-up"></i>';
+      btnToggleModo.title = newType === 'line' ? 'Ver como barras' : 'Ver como línea';
+    });
+  }
+
+})(); // IIFE
+</script>
+
+{% endblock %}

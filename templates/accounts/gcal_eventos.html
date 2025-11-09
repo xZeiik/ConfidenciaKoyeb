@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% load static %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/gcal_eventos.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 px-md-4 gcal-wrap">
+
+  <div class="d-flex justify-content-between align-items-center mb-3 page-header">
+    <div>
+      <h3 class="h4 mb-1">Mis próximos eventos</h3>
+      <p class="text-muted small mb-0">Sincronizados desde Google Calendar</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'accounts:gcal_crear_evento' %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-calendar-plus"></i> Nuevo evento
+      </a>
+      <a href="{% url 'accounts:gcal_eventos' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-clockwise"></i> Actualizar
+      </a>
+
+      {% if connected %}
+        <a href="{% url 'accounts:google_disconnect' %}" class="btn btn-outline-danger btn-sm">
+          <i class="bi bi-x-circle"></i> Desconectar
+        </a>
+        <a href="{% url 'accounts:google_reconnect' %}" class="btn btn-warning btn-sm">
+          <i class="bi bi-plug"></i> Reconectar
+        </a>
+      {% else %}
+        <a href="{% url 'accounts:google_connect' %}" class="btn btn-success btn-sm">
+          <i class="bi bi-plug"></i> Conectar Google Calendar
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if messages %}
+    <div class="mb-3">
+      {% for m in messages %}
+        <div class="alert alert-{{ m.tags }} mb-2" role="alert">{{ m }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if events %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
+      {% for e in events %}
+        <div class="col">
+          <div class="card event-card border-0 shadow-sm h-100">
+            <div class="card-body d-flex flex-column">
+              <div class="d-flex justify-content-between align-items-start mb-1">
+                <h5 class="event-title mb-1">{{ e.summary|default:"(Sin título)" }}</h5>
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-light border dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-three-dots-vertical"></i>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                      <a class="dropdown-item" href="{% url 'accounts:gcal_event_detail' e.id %}?calendar_id=primary">
+                        <i class="bi bi-eye"></i> Ver detalle
+                      </a>
+                    </li>
+                    <li>
+                      <a class="dropdown-item" href="{% url 'accounts:gcal_event_edit' e.id %}?calendar_id=primary">
+                        <i class="bi bi-pencil-square"></i> Editar
+                      </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                      <form method="post" action="{% url 'accounts:gcal_event_delete' e.id %}" onsubmit="return confirm('¿Eliminar este evento?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="calendar_id" value="primary">
+                        <button type="submit" class="dropdown-item text-danger">
+                          <i class="bi bi-trash"></i> Eliminar
+                        </button>
+                      </form>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {% if e.location %}
+                <div class="text-muted small d-flex align-items-center gap-2 mb-2">
+                  <i class="bi bi-geo-alt"></i><span class="truncate">{{ e.location }}</span>
+                </div>
+              {% endif %}
+
+              <div class="event-datetime mb-3">
+                {% if e.start.dateTime %}
+                  <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-calendar-check"></i>
+                    <span class="small text-muted">Inicio</span>
+                    <span class="fw-semibold small mono">{{ e.start.dateTime|slice:":16" }}</span>
+                  </div>
+                  <div class="d-flex align-items-center gap-2 mt-1">
+                    <i class="bi bi-calendar2-x"></i>
+                    <span class="small text-muted">Fin</span>
+                    <span class="fw-semibold small mono">{{ e.end.dateTime|slice:":16" }}</span>
+                  </div>
+                {% else %}
+                  <span class="badge rounded-pill text-bg-warning-subtle text-warning-emphasis">
+                    <i class="bi bi-sun"></i> Evento de día completo
+                  </span>
+                  <div class="d-flex align-items-center gap-2 mt-2">
+                    <i class="bi bi-calendar4-event"></i>
+                    <span class="fw-semibold small mono">{{ e.start.date }}</span>
+                    <span class="text-muted">→</span>
+                    <span class="fw-semibold small mono">{{ e.end.date }}</span>
+                  </div>
+                {% endif %}
+              </div>
+
+              <div class="mt-auto d-flex justify-content-between align-items-center">
+                <div class="d-flex gap-2 align-items-center">
+                  {% if e.attendees %}
+                    <span class="badge text-bg-light">
+                      <i class="bi bi-people"></i>
+                      {{ e.attendees|length }} invitado{{ e.attendees|length|pluralize:"s" }}
+                    </span>
+                  {% endif %}
+                  <span class="badge text-bg-light">
+                    <i class="bi bi-shield-lock"></i>
+                    {{ e.visibility|default:"default" }}
+                  </span>
+                </div>
+                <a class="btn btn-sm btn-outline-primary"
+                   href="{% url 'accounts:gcal_event_detail' e.id %}?calendar_id=primary">
+                  Ver
+                </a>
+              </div>
+            </div>
+
+            {% if e.htmlLink %}
+            <div class="card-footer bg-white border-0 pt-0">
+              <a class="small text-decoration-none" href="{{ e.htmlLink }}" target="_blank">
+                <i class="bi bi-box-arrow-up-right"></i> Abrir en Google Calendar
+              </a>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state text-center py-5">
+      <div class="empty-ico mx-auto mb-3">
+        <i class="bi bi-calendar3 text-muted"></i>
+      </div>
+      <h5 class="mb-1">No hay eventos próximos</h5>
+      <p class="text-muted mb-3">Crea tu primer evento o sincroniza tu calendario.</p>
+      <a href="{% url 'accounts:gcal_crear_evento' %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-calendar-plus"></i> Crear evento
+      </a>
+      {% if not connected %}
+        <a href="{% url 'accounts:google_connect' %}" class="btn btn-success btn-sm ms-2">
+          <i class="bi bi-plug"></i> Conectar Google Calendar
+        </a>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

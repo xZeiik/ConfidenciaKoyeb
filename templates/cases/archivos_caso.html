@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+
+<div class="container py-4">
+  <div class="card shadow-sm border-0">
+  <div class="card-header  d-flex justify-content-between align-items-center">
+    <div>
+      <h4 class="mb-0 text-primary">
+        <i class="bi bi-folder2-open me-2"></i>
+        Archivos del Caso {{ caso.codigo_caso }}
+      </h4>
+      <small class="text-muted">"{{ caso.titulo }}" — Cliente: <strong>{{ caso.cliente.nombre_completo }}</strong></small>
+    </div>
+
+    <div class="d-flex align-items-center gap-2">
+      {# --- Form ESTADO --- #}
+      <form method="post" action="{% url 'cases:cambiar_estado_caso' caso.id %}" class="d-flex align-items-center gap-2 m-0">
+        {% csrf_token %}
+        <label for="id_estado" class="small text-muted mb-0">Estado</label>
+        <select id="id_estado" name="estado" class="form-select form-select-sm w-auto">
+          {% for val, label in estados %}
+            <option value="{{ val }}" {% if caso.estado == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-sm btn-outline-success">
+          <i class="bi bi-check2-circle"></i>
+          Guardar
+        </button>
+      </form>
+
+      {# --- Form CATEGORÍA --- #}
+      <form method="post" action="{% url 'cases:cambiar_categoria_caso' caso.id %}" class="d-flex align-items-center gap-2 m-0">
+        {% csrf_token %}
+        <label for="id_categoria" class="small text-muted mb-0">Categoría</label>
+        <select id="id_categoria" name="categoria" class="form-select form-select-sm w-auto">
+          {% for val, label in categorias %}
+            <option value="{{ val }}" {% if caso.categoria == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-sm btn-outline-success">
+          <i class="bi bi-check2-circle"></i>
+          Guardar
+        </button>
+      </form>
+
+      <a href="?sync=1" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-repeat"></i> Sincronizar
+      </a>
+    </div>
+  </div>
+
+
+    <div class="card-body">
+      {% if puede_subir %}
+      <form method="post" enctype="multipart/form-data" class="mb-4 d-flex align-items-center gap-2"
+            action="{% url 'cases:subir_archivo_caso' caso.id %}">
+        {% csrf_token %}
+        <input type="file" name="file" required class="form-control form-control-sm w-auto">
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="bi bi-cloud-upload"></i> Subir archivo
+        </button>
+      </form>
+      {% endif %}
+
+      <div class="table-responsive">
+        <table class="table table-sm align-middle table-hover">
+          <thead class="table-light">
+            <tr>
+              <th><i class="bi bi-file-earmark-text"></i> Nombre</th>
+              <th>Tamaño</th>
+              <th>Última modificación</th>
+              <th class="text-center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in archivos %}
+            <tr>
+              <td>
+                {% if "pdf" in a.tipo_mime %}
+                  <i class="bi bi-file-earmark-pdf text-danger"></i>
+                {% elif "word" in a.tipo_mime %}
+                  <i class="bi bi-file-earmark-word text-primary"></i>
+                {% elif "sheet" in a.tipo_mime or "excel" in a.tipo_mime %}
+                  <i class="bi bi-file-earmark-spreadsheet text-success"></i>
+                {% elif "image" in a.tipo_mime %}
+                  <i class="bi bi-file-earmark-image text-warning"></i>
+                {% elif "presentation" in a.tipo_mime %}
+                  <i class="bi bi-file-earmark-slides text-danger"></i>
+                {% else %}
+                  <i class="bi bi-file-earmark text-muted"></i>
+                {% endif %}
+                {{ a.nombre }}
+              </td>
+              <td>{% if a.tamano %}{{ a.tamano|filesizeformat }}{% else %}-{% endif %}</td>
+              <td>{{ a.modificado_en|date:"d M Y, H:i" }}</td>
+              <td class="text-nowrap text-center">
+                {% if a.drive_file_id %}
+                  <a href="{% url 'cases:ver_archivo_caso' a.drive_file_id %}" 
+                     class="btn btn-outline-info btn-sm" title="Ver documento">
+                    <i class="bi bi-eye"></i> Ver
+                  </a>
+                  <a href="{% url 'cases:editar_archivo_caso' a.drive_file_id %}" 
+                     class="btn btn-outline-warning btn-sm" title="Editar documento">
+                    <i class="bi bi-pencil-square"></i> Editar
+                  </a>
+                  <a href="{% url 'cases:descargar_archivo_caso' a.drive_file_id %}" 
+                     class="btn btn-outline-primary btn-sm" title="Descargar documento">
+                    <i class="bi bi-download"></i> Descargar
+                  </a>
+                {% else %}
+                  <span class="text-muted small">Sin ID de Drive</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="4" class="text-center text-muted py-4">
+                <i class="bi bi-folder-x fs-2 d-block mb-2"></i>
+                No hay archivos disponibles en este caso.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% if eventos %}
+  <div class="card mt-4 shadow-sm border-0">
+    <div class="card-header bg-light">
+      <h5 class="mb-0"><i class="bi bi-clipboard-check me-2"></i>Historial del Caso</h5>
+    </div>
+    <ul class="list-group list-group-flush">
+      {% for e in eventos %}
+      <li class="list-group-item d-flex justify-content-between align-items-start">
+        <div>
+          <strong>{{ e.get_accion_display }}</strong>
+          {% if e.archivo %}
+            <span class="text-primary">{{ e.archivo.nombre }}</span>
+          {% endif %}
+          <div class="small text-muted">
+            {{ e.creado_en|date:"d/m/Y H:i" }} — {{ e.usuario|default:"Sistema" }}
+          </div>
+        </div>
+        <span class="badge bg-secondary text-white">{{ e.ip }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

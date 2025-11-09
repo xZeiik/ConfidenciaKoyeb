@@ -1,0 +1,326 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Iniciar sesión · Confidencia</title>
+  <style>
+    :root{
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --primary: #1f39ff;
+      --primary-2: #5a73ff;
+      --line: #e7eaf0;
+      --ring: rgba(31,57,255,.25);
+    }
+    .theme-dark{
+      --bg: #0f141b;
+      --card: #161b22;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --primary: #8aa2ff;
+      --primary-2: #6d8bff;
+      --line: #263040;
+      --ring: rgba(138,162,255,.35);
+    }
+
+    /* Layout */
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      display:grid;
+      place-items:center;
+      line-height:1.5;
+    }
+
+    .wrap{
+      width:min(900px, 92vw);
+      display:grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap:24px;
+      align-items:stretch;
+    }
+    @media (max-width: 860px){
+      .wrap{ grid-template-columns: 1fr; }
+    }
+
+    /* Panel visual */
+    .panel{
+      border-radius: 18px;
+      overflow:hidden;
+      background:
+        radial-gradient(80% 120% at 100% 0%, rgba(31,57,255,.18) 0%, transparent 60%),
+        radial-gradient(60% 120% at 0% 100%, rgba(90,115,255,.18) 0%, transparent 60%),
+        linear-gradient(180deg, var(--card), var(--card));
+      border:1px solid var(--line);
+      box-shadow: 0 8px 30px rgba(17,24,39,.08);
+      display:flex; align-items:center; justify-content:center;
+      padding: 36px;
+    }
+    .hero{
+      text-align:center;
+    }
+    .brand{
+      display:flex; align-items:center; justify-content:center; gap:.6rem;
+      margin-bottom: 18px;
+    }
+    .brand img{ height:36px; width:auto; object-fit:contain; }
+    .brand h1{
+      font-size: 22px; margin:0; font-weight:700; letter-spacing:.2px;
+    }
+    .hero p{ color: var(--muted); margin:.25rem 0 0; }
+
+    /* Card login */
+    .card{
+      background: var(--card);
+      border:1px solid var(--line);
+      border-radius: 18px;
+      padding: 26px 22px;
+      box-shadow: 0 6px 26px rgba(17,24,39,.08);
+      position: relative;
+    }
+    .card h2{
+      font-size: 18px; margin:0 0 6px; font-weight:700;
+    }
+    .card .sub{ color: var(--muted); font-size: 14px; margin-bottom: 16px; }
+
+    /* Modo oscuro toggle (esquina) */
+    .theme-toggle{
+      position: fixed; top:14px; right:14px;
+      display:flex; gap:8px;
+    }
+    .btn-icon{
+      appearance:none; background:var(--card); color:var(--text);
+      border:1px solid var(--line);
+      width:40px; height:40px; border-radius:12px;
+      display:grid; place-items:center;
+      cursor:pointer;
+      transition: transform .06s ease, background .2s ease, border-color .2s ease;
+      box-shadow: 0 4px 16px rgba(17,24,39,.08);
+    }
+    .btn-icon:hover{ transform: translateY(-1px); }
+    .btn-icon:active{ transform: translateY(0); }
+    .btn-icon svg{ width:18px; height:18px; }
+
+    /* Form */
+    form{ display:grid; gap:12px; }
+    label{ font-size: 13px; color: var(--muted); }
+    .field{
+      position:relative;
+    }
+    .input{
+      width:100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: var(--bg);
+      color: var(--text);
+      border:1px solid var(--line);
+      outline: none;
+      transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .input:focus{
+      border-color: var(--primary);
+      box-shadow: 0 0 0 .2rem var(--ring);
+    }
+    .input::placeholder{ color: color-mix(in oklab, var(--muted) 86%, #ffffff 14%); }
+
+    /* Password reveal */
+    .reveal{
+      position:absolute; right:8px; top:50%; transform:translateY(-50%);
+      background:transparent; border:0; cursor:pointer; padding:6px; border-radius:10px;
+      color: var(--muted);
+    }
+    .reveal:hover{ color: var(--text); }
+
+    /* Actions */
+    .actions{ display:flex; align-items:center; justify-content:space-between; margin-top: 6px; }
+    .remember{ display:flex; align-items:center; gap:.5rem; font-size:13px; color:var(--muted); }
+    .link{ color: var(--primary); text-decoration:none; font-size:13px; }
+    .link:hover{ text-decoration:underline; }
+
+    .btn{
+      appearance:none; border:0; padding: 12px 14px; border-radius: 12px;
+      background: linear-gradient(90deg, var(--primary), var(--primary-2));
+      color:#fff; font-weight:600; cursor:pointer;
+      transition: transform .06s ease, filter .15s ease;
+    }
+    .btn:hover{ filter: brightness(1.05); }
+    .btn:active{ transform: translateY(1px); }
+
+    /* Messages */
+    .messages{ margin: 8px 0 4px; display:grid; gap:8px; }
+    .msg{
+      padding:10px 12px; border-radius:10px; font-size: 14px;
+      background: #fee2e2; color:#991b1b; border:1px solid #fecaca;
+    }
+    .theme-dark .msg{
+      background: #3b1f1f; color: #fecaca; border-color:#7f1d1d;
+    }
+
+    /* Footer pequeño */
+    .tiny{ margin-top: 10px; color: var(--muted); font-size:12px; text-align:center; }
+
+
+    /* --- Fix inputs fuera + autofill + revelador de password --- */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+.field .input{
+  width: 100%;
+  box-sizing: border-box;
+  height: 44px;
+  line-height: 1.2;
+  padding-right: 42px;        /* espacio para el botón del ojo */
+  border-radius: 12px;
+}
+
+/* Asegura que el botón del ojo no mueva el layout */
+.field .reveal{ right: 10px; }
+
+/* Autofill (Chrome/Edge/Safari) */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus{
+  -webkit-text-fill-color: var(--text) !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--bg) inset !important;  /* iguala el fondo del input */
+  caret-color: var(--text) !important;
+  transition: background-color 9999s ease-out 0s;
+}
+
+/* Autofill (Firefox) */
+input:-moz-autofill{
+  box-shadow: 0 0 0 1000px var(--bg) inset !important;
+  -moz-text-fill-color: var(--text) !important;
+}
+
+/* iOS Safari: evita zoom raro en foco */
+@supports (-webkit-overflow-scrolling: touch) {
+  .field .input { font-size: 16px; }
+}
+
+/* Estados de error/información (por si usas messages al lado del campo) */
+.input.is-invalid{
+  border-color: #ef4444;
+  box-shadow: 0 0 0 .2rem rgba(239,68,68,.25);
+}
+.input.is-valid{
+  border-color: #22c55e;
+  box-shadow: 0 0 0 .2rem rgba(34,197,94,.2);
+}
+  </style>
+</head>
+<body>
+
+  <!-- Toggle modo oscuro -->
+  <div class="theme-toggle">
+    <button id="btnTheme" class="btn-icon" title="Modo oscuro / claro" aria-label="Cambiar tema">
+      <!-- ícono inicial se setea por JS -->
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.64 13a1 1 0 0 0-1.05-.14A8 8 0 1 1 11.1 3.41a1 1 0 0 0-.14-1.05A1 1 0 0 0 9.6 2.1 10 10 0 1 0 22 14.4a1 1 0 0 0-.36-1.4Z"/></svg>
+    </button>
+  </div>
+
+  <div class="wrap">
+    <!-- Panel visual con marca -->
+    <section class="panel">
+      <div class="hero">
+        <div class="brand">
+          <!-- reemplaza por tu logo claro/oscuro si quieres -->
+          <img src="{% static 'img/logo.png' %}" alt="Logo" onerror="this.style.display='none'">
+
+        </div>
+        <p>Acceso seguro al panel del bufete</p>
+      </div>
+    </section>
+
+    <!-- Card de login -->
+    <section class="card" role="form" aria-labelledby="login-title">
+      <h2 id="login-title">Iniciar sesión</h2>
+      <div class="sub">Usa tus credenciales corporativas</div>
+
+      {% if messages %}
+      <div class="messages">
+        {% for message in messages %}
+          <div class="msg">{{ message }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        <div class="field">
+          <label for="id_username">Usuario</label>
+          <input id="id_username" class="input" type="text" name="username" required autocomplete="username" placeholder="tu.usuario">
+        </div>
+
+        <div class="field">
+          <label for="id_password">Contraseña</label>
+          <input id="id_password" class="input" type="password" name="password" required autocomplete="current-password" placeholder="••••••••">
+          <button class="reveal" type="button" id="revealPwd" aria-label="Mostrar u ocultar contraseña" title="Mostrar/ocultar">
+            <svg id="eyeOpen"  viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 5C7 5 2.73 8.11 1 12c1.73 3.89 6 7 11 7s9.27-3.11 11-7c-1.73-3.89-6-7-11-7Zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10Zm0-8a3 3 0 1 0 .002 6.002A3 3 0 0 0 12 9Z"/></svg>
+          </button>
+        </div>
+
+        <div class="actions">
+          <label class="remember">
+            <input type="checkbox" name="remember" />
+            Recordarme
+          </label>
+          <a class="link" href="#">¿Olvidaste tu contraseña?</a>
+        </div>
+
+        <button class="btn" type="submit">Ingresar</button>
+      </form>
+
+      <div class="tiny">© {{ now|default:"" }} Confidencia</div>
+    </section>
+  </div>
+
+  <script>
+  (() => {
+    const root = document.documentElement;
+    const btnTheme = document.getElementById('btnTheme');
+    const svgMoon = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.64 13a1 1 0 0 0-1.05-.14A8 8 0 1 1 11.1 3.41a1 1 0 0 0-.14-1.05A1 1 0 0 0 9.6 2.1 10 10 0 1 0 22 14.4a1 1 0 0 0-.36-1.4Z"/></svg>`;
+    const svgSun  = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.8 1.42-1.42zm10.45 14.32l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM12 4V1h-0v3h0zm0 19v-3h0v3h0zm8-8h3v0h-3v0zm-19 0h3v0H1v0zm3.34 7.07l-1.41 1.41 1.79 1.8 1.41-1.41-1.79-1.8zM19.07 4.93l1.41-1.41-1.8-1.79-1.41 1.41 1.8 1.79zM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10z"/></svg>`;
+
+    // Estado inicial
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark' || (!saved && window.matchMedia?.('(prefers-color-scheme: dark)').matches)) {
+      root.classList.add('theme-dark');
+    }
+    syncIcon();
+
+    btnTheme?.addEventListener('click', () => {
+      root.classList.toggle('theme-dark');
+      localStorage.setItem('theme', root.classList.contains('theme-dark') ? 'dark' : 'light');
+      syncIcon();
+    });
+
+    function syncIcon(){
+      const dark = root.classList.contains('theme-dark');
+      btnTheme.innerHTML = dark ? svgSun : svgMoon;
+      btnTheme.title = dark ? 'Modo claro' : 'Modo oscuro';
+      btnTheme.setAttribute('aria-label', btnTheme.title);
+    }
+
+    // Mostrar/ocultar contraseña
+    const pwd = document.getElementById('id_password');
+    const reveal = document.getElementById('revealPwd');
+    let shown = false;
+    reveal?.addEventListener('click', () => {
+      shown = !shown;
+      pwd.type = shown ? 'text' : 'password';
+      reveal.title = shown ? 'Ocultar contraseña' : 'Mostrar contraseña';
+      reveal.setAttribute('aria-label', reveal.title);
+    });
+  })();
+  </script>
+</body>
+</html>

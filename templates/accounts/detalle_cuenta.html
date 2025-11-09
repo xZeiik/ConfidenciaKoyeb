@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/detalle_cuenta.css' %}">
+
+<div class="detalle-cuenta container-fluid px-3 px-md-4">
+  <div class="d-flex justify-content-between align-items-center mb-4 page-header">
+    <div>
+      <h3 class="h4 mb-1">Mi cuenta</h3>
+      <p class="text-muted small mb-0">Consulta y actualiza la información de tu cuenta.</p>
+    </div>
+  </div>
+
+  {% if messages %}
+    <div class="mb-3">
+      {% for m in messages %}
+        <div class="alert alert-{{ m.tags }} mb-2" role="alert">{{ m }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="row g-4">
+    <!-- Datos de perfil (solo lectura) -->
+    <div class="col-12 col-lg-6">
+      <div class="card form-card border-0 shadow-sm">
+        <div class="card-body">
+          <h5 class="mb-3">Datos de perfil</h5>
+          <div class="mb-3">
+            <label class="form-label">Nombre de usuario</label>
+            <input class="form-control" value="{{ request.user.username }}" disabled>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Nombre</label>
+            <input class="form-control" value="{{ request.user.first_name|default:'—' }}" disabled>
+          </div>
+          <div class="mb-0">
+            <label class="form-label">Apellidos</label>
+            <input class="form-control" value="{{ request.user.last_name|default:'—' }}" disabled>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actualizar email -->
+    <div class="col-12 col-lg-6">
+      <div class="card form-card border-0 shadow-sm">
+        <div class="card-body">
+          <h5 class="mb-3">Correo electrónico</h5>
+          <form method="post" class="row g-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_email">
+            <div class="col-12">
+              <label for="{{ email_form.email.id_for_label }}" class="form-label">Correo</label>
+              {{ email_form.email }}
+              {% for error in email_form.email.errors %}
+                <div class="text-danger small">{{ error }}</div>
+              {% endfor %}
+            </div>
+            <div class="col-12 d-flex justify-content-end gap-2 actions">
+              <button type="submit" class="btn btn-primary">
+                <i class="bi bi-envelope-check"></i> Guardar correo
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <!-- Cambiar contraseña -->
+    <div class="col-12">
+    <div class="card form-card border-0 shadow-sm password-card">
+        <div class="card-body">
+        <h5 class="mb-3">Contraseña</h5>
+        <form method="post" class="row g-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="change_password">
+
+            <div class="col-12 col-md-4">
+            <label for="{{ password_form.old_password.id_for_label }}" class="form-label">Contraseña actual</label>
+            <div class="password-field">
+                {{ password_form.old_password }}
+                <button type="button" class="toggle-password" data-target="{{ password_form.old_password.id_for_label }}" aria-label="Mostrar/Ocultar">
+                <i class="bi bi-eye"></i>
+                </button>
+            </div>
+            {% for e in password_form.old_password.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="col-12 col-md-4">
+            <label for="{{ password_form.new_password1.id_for_label }}" class="form-label">Nueva contraseña</label>
+            <div class="password-field">
+                {{ password_form.new_password1 }}
+                <button type="button" class="toggle-password" data-target="{{ password_form.new_password1.id_for_label }}" aria-label="Mostrar/Ocultar">
+                <i class="bi bi-eye"></i>
+                </button>
+            </div>
+            {% for e in password_form.new_password1.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="col-12 col-md-4">
+            <label for="{{ password_form.new_password2.id_for_label }}" class="form-label">Confirmar nueva</label>
+            <div class="password-field">
+                {{ password_form.new_password2 }}
+                <button type="button" class="toggle-password" data-target="{{ password_form.new_password2.id_for_label }}" aria-label="Mostrar/Ocultar">
+                <i class="bi bi-eye"></i>
+                </button>
+            </div>
+            {% for e in password_form.new_password2.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+            </div>
+
+            {% if password_form.non_field_errors %}
+            <div class="col-12 text-danger small">
+                {{ password_form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <div class="col-12 d-flex justify-content-end gap-2 actions">
+            <button type="submit" class="btn btn-success">
+                <i class="bi bi-shield-lock"></i> Cambiar contraseña
+            </button>
+            </div>
+
+            {% if password_help %}
+            <div class="col-12">
+                <div class="form-text">{{ password_help|safe }}</div>
+            </div>
+            {% endif %}
+        </form>
+        </div>
+    </div>
+    </div>
+  </div>
+</div>
+<script>
+document.addEventListener('click', function (e) {
+  const btn = e.target.closest('.toggle-password');
+  if (!btn) return;
+  const id = btn.getAttribute('data-target');
+  const input = document.getElementById(id);
+  if (!input) return;
+  const showing = input.getAttribute('type') === 'text';
+  input.setAttribute('type', showing ? 'password' : 'text');
+  btn.innerHTML = showing ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
+});
+</script>
+
+
+{% endblock %}
+

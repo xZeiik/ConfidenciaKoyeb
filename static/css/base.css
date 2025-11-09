@@ -1,0 +1,553 @@
+:root{
+  --gutter-x: 24px;     /* controla el padding horizontal global */
+}
+
+/* === Estructura general === */
+body {
+  background: #f5f7fb;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+}
+
+/* === Sidebar === */
+.sidebar{
+  background: transparent;
+  border-right: none;           /* antes: 1px solid #e7eaf0 */
+  box-shadow: none;
+  padding: 20px 12px;      /* vuelve el padding que tenías antes */
+  position: sticky;        /* opcional: sidebar fijo mientras haces scroll */
+  top: 0;
+}
+
+.brand {
+  display:flex; align-items:center; gap:.75rem;
+  margin-bottom: 1rem;
+}
+
+/* Imagen del logo */
+.logo-wrap img {
+  max-width: 70%;
+  max-height: 70%;
+  object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+/* Links del menú lateral */
+.sidebar .nav-link {
+  color: #2b2f36;
+  border-radius: 12px;
+  padding: 0.65rem 0.8rem;
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.sidebar .nav-link:hover,
+.sidebar .nav-link.active {
+  background: #eef2ff;
+  color: #1f39ff;
+}
+
+/* === Topbar === */
+.topbar {
+  border-bottom: none;          /* antes: 1px solid #e7eaf0 */
+  padding: 0.75rem 1rem;
+}
+
+/* === Contenido principal === */
+.content {
+  padding: 24px;
+}
+
+/* === Tarjetas === */
+.card {
+  border: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(17, 24, 39, 0.05);
+  border-radius: 18px;
+}
+
+/* Variante para el banner de avisos (si quieres dejar de usar style inline) */
+.card.notice-banner{
+  color:#fff;
+  background: linear-gradient(90deg,#061c3d,#1976d2);
+}
+
+/* Chips y badges */
+.chip {
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+/* === Tabs unificadas con contenido === */
+.card-tabs-unified {
+  border: 0;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(17,24,39,0.05);
+  border-radius: 18px;
+  overflow: hidden; /* mantiene todo unido visualmente */
+}
+
+/* Ajustes para nav-tabs */
+.nav-tabs {
+  border-bottom: none !important;
+  background: #fff;
+  padding: 0.5rem 0.5rem 0 0.5rem;
+}
+
+/* Quitar bordes de los botones y cambiar estilo */
+.nav-tabs .nav-link {
+  border: none !important;
+  color: #6c757d;
+  border-radius: 8px;
+  margin-right: 4px;
+  background: transparent;
+  transition: all 0.2s ease;
+}
+
+.nav-tabs .nav-link:hover {
+  background: #f1f3fa;
+  color: #1f39ff;
+}
+
+.nav-tabs .nav-link.active {
+  background: #eef2ff;
+  color: #1f39ff;
+  box-shadow: none;
+}
+
+/* Unifica visualmente contenido de pestañas */
+.tab-content {
+  background: #fff;
+  border-top: 1px solid #e7eaf0;
+  padding: 1rem;
+  border-radius: 0 0 18px 18px;
+}
+
+/* Canvas responsive dentro de tabs (Chart.js) */
+.tab-pane canvas{
+  width: 100% !important;
+  height: auto !important;
+}
+
+.chart-box{
+  width: 100%;                 /* ocupa el ancho del card */
+  max-width: 1100px;           /* no crece infinito en pantallas XL */
+  margin-inline: auto;         /* centrado dentro del card */
+  /* altura flexible: mínimo 220px, ideal 28vw, tope 340px */
+  height: clamp(220px, 28vw, 340px);
+}
+
+/* Variante compacta (mini-charts / secundarios) */
+.chart-box.chart-sm{
+  /* mínimo 160px, ideal 20vw, tope 240px */
+  height: clamp(160px, 20vw, 240px);
+}
+
+.chart-box canvas{
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+.chart-box1{ width:100%; height:240px; }
+
+/* ====================================================== */
+/* =================== MODO NOCTURNO ==================== */
+/* ====================================================== */
+
+/* Base */
+.theme-dark body{
+  background:#0f141b;
+  color:#e5e7eb;
+}
+.theme-dark .card,
+.theme-dark .card-tabs-unified{
+  background:#161b22;
+  box-shadow:0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.35);
+}
+.theme-dark .nav-tabs{ background:#161b22; }
+.theme-dark .tab-content{ background:#161b22; border-top:1px solid #263040; }
+.theme-dark .nav-tabs .nav-link{ color:#9ca3af; }
+.theme-dark .nav-tabs .nav-link:hover{ background:#1f2937; color:#8aa2ff; }
+.theme-dark .nav-tabs .nav-link.active{ background:rgba(31,57,255,.15); color:#8aa2ff; }
+.theme-dark .sidebar .nav-link:hover,
+.theme-dark .sidebar .nav-link.active{ background:rgba(31,57,255,.15); color:#8aa2ff; }
+.theme-dark .card.notice-banner{ background:linear-gradient(90deg,#0b2447,#19376d); }
+
+/* ===== MEJORAS: Formularios, topbar y componentes ===== */
+
+/* Campos de formulario */
+.theme-dark .form-control,
+.theme-dark .form-select,
+.theme-dark textarea,
+.theme-dark .input-group-text{
+  background-color:#0f141b;
+  color:#e5e7eb;
+  border:1px solid #2b3442;
+}
+.theme-dark .form-control::placeholder,
+.theme-dark textarea::placeholder{
+  color:rgba(255, 255, 255, 0.55);
+}
+.theme-dark .form-control:focus,
+.theme-dark .form-select:focus,
+.theme-dark textarea:focus{
+  background-color:#0f141b;
+  color:#e5e7eb;
+  border-color:#44557a;
+  box-shadow:0 0 0 .2rem rgba(138,162,255,.25);
+}
+
+/* Label y textos apagados */
+.theme-dark label,
+.theme-dark .form-label{ color:#cfd4dc; }
+.theme-dark .text-muted{ color:#9ca3af !important; }
+
+/* Select: chevron claro */
+.theme-dark .form-select{
+  --bs-form-select-bg-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='%23e5e7eb' d='M3.204 5.5a.5.5 0 01.58-.093l.07.057L8 9.293l4.146-3.829a.5.5 0 01.765.638l-.057.07-4.5 4.156a.5.5 0 01-.638.057l-.07-.057-4.5-4.156a.5.5 0 010-.765z'/%3e%3c/svg%3e");
+  background-image: var(--bs-form-select-bg-img), var(--bs-form-select-bg-icon, none);
+  background-repeat:no-repeat;
+  background-position:right .75rem center, center right 2.25rem;
+  background-size:16px 12px;
+}
+
+/* Checkbox / radio */
+.theme-dark .form-check-input{
+  background-color:#0f141b;
+  border:1px solid #2b3442;
+}
+.theme-dark .form-check-input:checked{
+  background-color:#8aa2ff;
+  border-color:#8aa2ff;
+  box-shadow:0 0 0 .15rem rgba(138,162,255,.35);
+}
+
+/* Buscador en topbar */
+.theme-dark .topbar .form-control{
+  background-color:#0f141b;
+  border-color:#2b3442;
+  color:#e5e7eb;
+}
+.theme-dark .topbar .form-control::placeholder{ color:rgba(229,231,235,.55); }
+
+/* Dropdowns / menús */
+.theme-dark .dropdown-menu{
+  background-color:#161b22;
+  border:1px solid #2b3442;
+  color:#e5e7eb;
+}
+.theme-dark .dropdown-item{ color:#e5e7eb; }
+.theme-dark .dropdown-item:hover,
+.theme-dark .dropdown-item:focus{
+  background-color:#1f2937;
+  color:#8aa2ff;
+}
+
+/* Botón claro en oscuro (ej. toggle de tema) */
+.theme-dark .btn-light{
+  color:#e5e7eb;
+  background-color:#232a33;
+  border-color:#3a4554;
+}
+.theme-dark .btn-light:hover{ background-color:#2c3541; border-color:#465266; }
+
+/* =============== */
+/* Tablas – Dark   */
+/* =============== */
+.theme-dark .table {
+  --tbl-border: #263040;
+  --tbl-head-bg: #1b222c;
+  --tbl-row-hover: #1f2937;
+  --tbl-striped: #18202a;
+
+  color: #ffffff;                /* texto blanco en tabla */
+  border-color: var(--tbl-border);
+  background-color: transparent;
+}
+
+.theme-dark .table > :not(caption) > * > * {
+  background-color: transparent;          /* evita fondos blancos */
+  border-color: var(--tbl-border);
+  color: #ffffff;                          /* texto blanco en celdas */
+}
+
+/* Encabezado */
+.theme-dark .table thead th {
+  background: var(--tbl-head-bg);
+  color: #f5f5f5;                /* header blanco suave */
+  font-weight: 600;
+  border-bottom: 1px solid var(--tbl-border);
+}
+
+/* Hover y striped */
+.theme-dark .table-hover > tbody > tr:hover > * {
+  background-color: var(--tbl-row-hover);
+  color: #ffffff;
+}
+.theme-dark .table-striped > tbody > tr:nth-of-type(odd) > * {
+  background-color: var(--tbl-striped);
+}
+
+/* Celdas “muted” (como el row vacío) */
+.theme-dark .text-muted { color: rgba(255,255,255,0.65) !important; }
+
+/* Bordes en tabla dentro de .card */
+.theme-dark .card .table thead th,
+.theme-dark .card .table td,
+.theme-dark .card .table th {
+  border-color: var(--tbl-border);
+}
+
+/* Table-responsive: sombra sutil y scroll oscuro */
+.theme-dark .table-responsive {
+  box-shadow: inset 0 0 0 1px rgba(38,48,64,.35);
+}
+.theme-dark .table-responsive::-webkit-scrollbar {
+  height: 10px;
+}
+.theme-dark .table-responsive::-webkit-scrollbar-thumb {
+  background: #3a465a;
+  border-radius: 8px;
+}
+
+/* Botones outline en celdas de acción */
+.theme-dark .btn-outline-secondary {
+  color: #f5f5f5;
+  border-color: #4c586a;
+}
+.theme-dark .btn-outline-secondary:hover {
+  color: #ffffff;
+  background-color: #2f3b4e;
+  border-color: #8aa2ff;
+  box-shadow: 0 0 6px rgba(138,162,255,0.3);
+}
+
+/* Paginación (si la usas) */
+.theme-dark .page-link {
+  background-color: #161b22;
+  color: #ffffff;
+  border-color: #2b3442;
+}
+.theme-dark .page-link:hover {
+  background-color: #1f2937;
+  color: #ffffff;
+  border-color: #3a4554;
+}
+.theme-dark .page-item.active .page-link {
+  background-color: #8aa2ff;
+  border-color: #8aa2ff;
+  color: #0f141b;
+
+}
+
+
+/* ===== Dark: Sidebar ===== */
+.theme-dark .sidebar { background: transparent; }
+
+.theme-dark .sidebar .brand,
+.theme-dark .sidebar .brand * {
+  color: #ffffff;
+}
+
+/* Texto base de items */
+.theme-dark .sidebar .nav-link {
+  color: #cfd4dc;
+}
+
+/* Íconos Bootstrap dentro del sidebar */
+.theme-dark .sidebar .nav-link i,
+.theme-dark .sidebar .nav-link .bi {
+  color: #cfd4dc;
+}
+
+/* Hover / active (ya usas azul del tema) */
+.theme-dark .sidebar .nav-link:hover,
+.theme-dark .sidebar .nav-link.active {
+  background: rgba(31,57,255,.15);
+  color: #8aa2ff;
+}
+.theme-dark .sidebar .nav-link:hover i,
+.theme-dark .sidebar .nav-link.active i,
+.theme-dark .sidebar .nav-link:hover .bi,
+.theme-dark .sidebar .nav-link.active .bi {
+  color: #8aa2ff;
+}
+
+/* Separadores o subtítulos dentro del sidebar (si los usas) */
+.theme-dark .sidebar .nav .nav-title,
+.theme-dark .sidebar .nav .text-muted {
+  color: rgba(255,255,255,.65) !important;
+}
+
+/* (Opcional) Si tu logo es oscuro y necesitas invertirlo en modo dark */
+.theme-dark .logo-wrap img {
+  /* comenta si no lo necesitas */
+  filter: brightness(0) invert(1) contrast(1.05);
+}
+
+/* ===== Dark: Títulos y “letras del cliente” ===== */
+/* Titulares generales más brillantes */
+.theme-dark h1,
+.theme-dark h2,
+.theme-dark h3,
+.theme-dark h4,
+.theme-dark h5,
+.theme-dark h6 {
+  color: #ffffff;
+}
+
+/* Textos destacados que usas en listas/tablas/fichas */
+.theme-dark .fw-medium,
+.theme-dark .fw-bold,
+.theme-dark .display-6,
+.theme-dark .card .fw-bold,
+.theme-dark .card .fw-medium {
+  color: #ffffff;
+}
+
+/* Encabezado de ficha de cliente (ej. <h4> y línea secundaria) */
+.theme-dark .cliente-header,
+.theme-dark .cliente-header h4,
+.theme-dark .cliente-header .subline {
+  color: #ffffff;
+}
+
+/* En tablas, primer col (suele ser nombre del cliente) – por si quieres reforzar */
+.theme-dark table.table td:first-child,
+.theme-dark table.table th:first-child {
+  color: #ffffff;
+}
+
+/* Links dentro de celdas: que sigan viéndose blancos con hover azul */
+.theme-dark .table a {
+  color: #ffffff;
+  text-decoration: none;
+}
+.theme-dark .table a:hover {
+  color: #8aa2ff;
+}
+
+
+
+/* ===== Ficha: labels y valores (dark) ===== */
+
+/* El label (izquierda) va gris claro */
+.theme-dark .card .text-muted { 
+  color: rgba(255,255,255,.70) !important; 
+}
+
+/* El valor inmediatamente después del label va blanco  */
+.theme-dark .card .text-muted + div {
+  color: #ffffff !important;
+}
+
+/* Si el valor contiene enlaces o spans internos */
+.theme-dark .card .text-muted + div * {
+  color: #ffffff !important;
+}
+
+/* Notas multilínea */
+.text-pre-wrap { white-space: pre-wrap; }
+.theme-dark .text-pre-wrap { color:#ffffff; }
+
+/* Por si algún small hereda un gris demasiado bajo dentro del valor */
+.theme-dark .card .text-muted + div small { 
+  color: #ffffff !important; 
+}
+
+/* Badge de “Datos sensibles” con mejor contraste en dark (opcional) */
+.theme-dark .badge.text-bg-warning {
+  color: #1f1f1f;
+  background-color: #ffd166 !important;
+}
+
+
+/* ====== Casos > Buscar: ajustes generales ====== */
+
+/* Hover de filas (tema claro ya lo tienes con inline). Aquí reforzamos y cubrimos oscuro */
+.table-row-hover:hover { background-color: rgba(13,110,253,.05); } /* claro */
+.theme-dark .table-row-hover:hover { background-color: rgba(138,162,255,.12); } /* oscuro */
+
+/* Filas clickeables */
+.cursor-pointer { cursor: pointer; }
+
+/* Header de la card trae bg-white en el template: igualamos en oscuro */
+.theme-dark .card-header.bg-white {
+  background-color: #161b22 !important;
+  border-color: #263040 !important;
+}
+
+/* Thead con .table-light en oscuro: evita fondo blanco y ajusta bordes */
+.theme-dark .table thead.table-light,
+.theme-dark .table thead.table-light th,
+.theme-dark .table .table-light th {
+  background-color: #1b222c !important;
+  color: #f5f5f5 !important;
+  border-color: #263040 !important;
+}
+
+/* Badge del término buscado (text-bg-light) en oscuro: subimos contraste */
+.theme-dark .badge.text-bg-light {
+  color: #0f141b !important;
+  background-color: #cfd4dc !important;
+  border: 1px solid #9aa6b2 !important;
+}
+
+/* ====== Buscador (desktop y mobile) ======
+   En el template usas .bg-light y .border-0; aquí re-tematizamos en oscuro
+*/
+.theme-dark .input-group-text.bg-light,
+.theme-dark .form-control.bg-light {
+  background-color: #0f141b !important;
+  color: #e5e7eb !important;
+  border-color: #2b3442 !important;
+}
+.theme-dark .form-control.bg-light::placeholder {
+  color: rgba(229,231,235,.55) !important;
+}
+.theme-dark .input-group-text.bg-light i,
+.theme-dark .input-group-text.bg-light .bi {
+  color: #cfd4dc !important;
+}
+
+/* Si el input-group usa .border-0, devolvemos un borde sutil solo en oscuro */
+.theme-dark .input-group .form-control.border-0,
+.theme-dark .input-group .input-group-text.border-0 {
+  border: 1px solid #2b3442 !important;
+}
+
+/* Botón "Limpiar" en oscuro: mejor contraste */
+.theme-dark .btn.btn-outline-secondary {
+  color: #f5f5f5;
+  border-color: #4c586a;
+}
+.theme-dark .btn.btn-outline-secondary:hover {
+  color: #ffffff;
+  background-color: #2f3b4e;
+  border-color: #8aa2ff;
+  box-shadow: 0 0 6px rgba(138,162,255,0.3);
+}
+
+/* Badge de categoría "light border" dentro de la tabla en oscuro */
+.theme-dark .badge.text-bg-light.border {
+  background-color: #1f2937 !important;
+  color: #e5e7eb !important;
+  border-color: #3a4554 !important;
+}
+
+/* Paginación ya la tienes estilizada; este ajuste hace match con el header */
+.theme-dark nav[aria-label="Resultados"] .page-link {
+  background-color: #161b22;
+  color: #ffffff;
+  border-color: #2b3442;
+}
+
+
+
+

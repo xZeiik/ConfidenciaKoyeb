@@ -1,0 +1,83 @@
+/* ====== Modal Configuración (overlay blur elegante) ====== */
+.settings-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(17, 24, 39, 0.45);
+  backdrop-filter: blur(6px);
+  z-index: 1050;
+  transition: opacity 0.25s ease;
+}
+
+.settings-modal.show {
+  display: flex;
+  animation: fadeIn 0.25s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.settings-content {
+  background: var(--modal-bg, #fff);
+  color: var(--modal-text, #111);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  width: 90%;
+  max-width: 480px;
+  padding: 1.5rem;
+  transform: scale(0.98);
+  animation: scaleIn 0.25s ease forwards;
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+}
+
+.settings-header h5 {
+  font-weight: 600;
+  margin: 0;
+}
+
+/* Inputs y botones */
+.settings-body .form-label {
+  font-weight: 500;
+}
+
+.settings-body .form-select,
+.settings-body .form-check-input {
+  cursor: pointer;
+}
+
+.settings-body .btn-primary {
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+/* ====== Modo oscuro ====== */
+html[data-bs-theme="dark"],
+body[data-bs-theme="dark"],
+html.dark,
+body.dark {
+  --modal-bg: #111827;
+  --modal-text: #f3f4f6;
+}
+
+.settings-content {
+  background: var(--modal-bg);
+  color: var(--modal-text);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}

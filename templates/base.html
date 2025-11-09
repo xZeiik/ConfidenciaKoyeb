@@ -1,0 +1,248 @@
+{% load static %}
+
+<!doctype html>
+<html lang="es" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Confidencia{% endblock %}</title>
+  <link rel="icon" href="{% static 'img/favicon.png' %}" type="image/x-icon">
+
+  <!-- Bootstrap 5 + Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
+  <link rel="stylesheet" href="{% static 'css/settings_modal.css' %}">
+
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo-wrap">
+        <img src="{% static 'img/logo.png' %}" alt="Logo Bufete">
+      </div>
+    </div>
+
+    <nav class="nav flex-column gap-1">
+      <a class="nav-link {% block nav_overview %}{% endblock %}" href="{% url 'core:home' %}">
+        <i class="bi bi-speedometer2"></i> Panel principal
+      </a>
+      <a class="nav-link" href="{% url 'cases:listado_casos_archivos' %}">
+        <i class="bi bi-folder2-open"></i> Archivos
+      </a>
+      <a class="nav-link" href="{% url 'clients:listar' %}">
+        <i class="bi bi-people"></i> Clientes
+      </a>
+      <a class="nav-link" href="{% url 'accounts:detalle_cuenta' %}">
+        <i class="bi bi-person-gear"></i> Cuenta
+      </a>
+
+      <a class="nav-link" href="{% url 'cases:ficheros_recientes' %}">
+        <i class="bi bi-journal-text"></i> Ficheros
+      </a>
+      <a class="nav-link" href="{% url 'accounts:gcal_eventos' %}"><i class="bi bi-calendar-date"></i> Calendario</a>
+
+      {% if request.user.is_superuser or request.user.rol == 'ADMINISTRADOR' %}
+      <li class="nav-item">
+        <a class="nav-link" href="{% url 'accounts:listar_abogados' %}">
+          <i class="bi bi-people"></i> Abogados
+        </a>
+      </li>
+      {% endif %}
+
+      <div class="mt-auto"></div>
+      <a class="nav-link text-danger" href="{% url 'accounts:logout' %}">
+        <i class="bi bi-box-arrow-right"></i> Cerrar sesión
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <main>
+    <!-- Topbar -->
+    <div class="topbar d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center gap-2 text-secondary">
+        <span class="text-muted">Panel</span>
+        <i class="bi bi-chevron-right small"></i>
+        <span class="fw-medium">Inicio</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <form method="get" action="{% url 'cases:casos_buscar' %}" class="d-flex" role="search">
+          <div class="input-group">
+            <span class="input-group-text border-0"><i class="bi bi-search"></i></span>
+            <input class="form-control border-0" type="search" name="q"
+                   placeholder="Búsqueda por RUT, nombre o código de caso"
+                   aria-label="Buscar"
+                   value="{{ request.GET.q|default:'' }}">
+          </div>
+        </form>
+
+        <button id="btnTheme" class="btn btn-light" title="Modo oscuro">
+          <i class="bi bi-moon"></i>
+        </button>
+
+        <button class="btn btn-outline-secondary rounded-pill" id="openSettings" title="Configuración">
+          <i class="bi bi-gear"></i>
+        </button>
+        <div class="btn btn-outline-secondary rounded-pill px-3">
+          <i class="bi bi-person-circle me-1"></i>{{ request.user.username }}
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+      {% if messages %}
+        {% for m in messages %}
+          <div class="alert alert-{{ m.tags }} alert-dismissible fade show" role="alert">{{ m }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+</div>
+
+<!-- Modal de Configuración -->
+<div id="settingsModal" class="settings-modal" role="dialog" aria-label="Configuración del sistema">
+  <div class="settings-content">
+    <div class="settings-header">
+      <h5>Configuración del sistema</h5>
+      <button class="btn-close" id="closeSettings" aria-label="Cerrar"></button>
+    </div>
+
+    <div class="settings-body">
+      <div class="form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" id="darkModeSwitch">
+        <label class="form-check-label" for="darkModeSwitch">Modo oscuro</label>
+      </div>
+
+      <div class="form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" id="notificationsSwitch" checked>
+        <label class="form-check-label" for="notificationsSwitch">Notificaciones activas</label>
+      </div>
+
+      <div class="mb-3">
+      <label class="form-label">Tamaño de fuente</label>
+      <select class="form-select" id="fontSizeSelect">
+        <option value="small">Pequeño</option>
+        <option value="normal" selected>Normal</option>
+        <option value="large">Grande</option>
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Color de acento</label>
+      <input type="color" class="form-control form-control-color" id="accentColor" value="#0d6efd">
+    </div>
+
+    <div class="form-check form-switch mb-3">
+    <input class="form-check-input" type="checkbox" id="weeklySummarySwitch" checked>
+    <label class="form-check-label" for="weeklySummarySwitch">
+      Enviar resumen semanal de actividad al correo
+    </label>
+    </div>
+
+    <div class="form-check form-switch mb-3">
+    <input class="form-check-input" type="checkbox" id="autoLogoutSwitch">
+    <label class="form-check-label" for="autoLogoutSwitch">
+      Cerrar sesión automáticamente tras 15 minutos de inactividad
+    </label>
+    </div>
+
+      <button class="btn btn-primary w-100 mt-3">
+        <i class="bi bi-check-circle"></i> Guardar preferencias
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script>
+// Aplicar el tema guardado al cargar la página (antes de renderizar)
+(() => {
+  const theme = localStorage.getItem("theme");
+  if (theme === "dark") {
+    document.documentElement.classList.add("theme-dark");
+  } else {
+    document.documentElement.classList.remove("theme-dark");
+  }
+})();
+</script>
+
+
+<script>
+(() => {
+  const modal = document.getElementById("settingsModal");
+  const openBtn = document.getElementById("openSettings");
+  const closeBtn = document.getElementById("closeSettings");
+  const body = document.body;
+
+  // Controles dentro del modal
+  const darkSwitch = document.getElementById("darkModeSwitch");
+  const notifSwitch = document.getElementById("notificationsSwitch");
+  const fontSelect  = document.getElementById("fontSizeSelect");
+  const colorPicker = document.getElementById("accentColor");
+  const summarySwitch = document.getElementById("weeklySummarySwitch");
+  const autoLogoutSwitch = document.getElementById("autoLogoutSwitch");
+  const saveBtn     = modal?.querySelector(".btn.btn-primary");
+
+  // Leer valores guardados
+  const themeSaved = localStorage.getItem("theme");
+  const notifSaved = localStorage.getItem("notificationsEnabled");
+  const fontSaved  = localStorage.getItem("fontSize");
+  const colorSaved = localStorage.getItem("accentColor");
+  const summarySaved = localStorage.getItem("weeklySummary");
+  const autoLogoutSaved = localStorage.getItem("autoLogout");
+
+  // Sincronizar estado inicial
+  if (darkSwitch) darkSwitch.checked = themeSaved === "dark" || document.documentElement.classList.contains("theme-dark");
+  if (notifSwitch) notifSwitch.checked = notifSaved !== "false";
+  if (fontSelect && fontSaved) fontSelect.value = fontSaved;
+  if (colorPicker && colorSaved) colorPicker.value = colorSaved;
+  if (summarySwitch) summarySwitch.checked = summarySaved === "true";
+  if (autoLogoutSwitch) autoLogoutSwitch.checked = autoLogoutSaved === "true";
+
+  // Abrir/cerrar modal
+  function open() {
+    modal.classList.add("show");
+    body.style.overflow = "hidden";
+  }
+  function close() {
+    modal.classList.remove("show");
+    body.style.overflow = "";
+  }
+
+  openBtn?.addEventListener("click", open);
+  closeBtn?.addEventListener("click", close);
+  modal?.addEventListener("click", (e) => { if (e.target === modal) close(); });
+
+  // Cambiar tema en tiempo real
+  darkSwitch?.addEventListener("change", () => {
+    const root = document.documentElement;
+    const toDark = darkSwitch.checked;
+    root.classList.toggle("theme-dark", toDark);
+    localStorage.setItem("theme", toDark ? "dark" : "light");
+  });
+
+  // Guardar todas las preferencias
+  saveBtn?.addEventListener("click", () => {
+    if (notifSwitch) localStorage.setItem("notificationsEnabled", notifSwitch.checked ? "true" : "false");
+    if (fontSelect) localStorage.setItem("fontSize", fontSelect.value);
+    if (colorPicker) localStorage.setItem("accentColor", colorPicker.value);
+    if (summarySwitch) localStorage.setItem("weeklySummary", summarySwitch.checked ? "true" : "false");
+    if (autoLogoutSwitch) localStorage.setItem("autoLogout", autoLogoutSwitch.checked ? "true" : "false");
+    close();
+  });
+})();
+
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

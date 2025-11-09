@@ -1,0 +1,75 @@
+/* ===== Variables por defecto (modo claro) ===== */
+:root{
+  --uf-card-bg:#fff;
+  --uf-input-bg:#fff;
+  --uf-text:#111827;
+  --uf-muted:#6b7280;
+  --uf-border:rgba(17,24,39,.12);
+  --uf-focus:#4f46e5;
+}
+
+/* ===== Tema oscuro según distintos toggles (ajusta si usas otro) ===== */
+html[data-bs-theme="dark"], body[data-bs-theme="dark"],
+html[data-theme="dark"], body[data-theme="dark"],
+html.dark, body.dark,
+html.dark-mode, body.dark-mode,
+html.theme-dark, body.theme-dark{
+  --uf-card-bg:#111827 !important;
+  --uf-input-bg:#0b1220 !important;
+  --uf-text:#e5e7eb !important;
+  --uf-muted:#9ca3af !important;
+  --uf-border:rgba(255,255,255,.08) !important;
+}
+
+/* ===== Estructura ===== */
+.user-form .page-header h3{font-weight:700;letter-spacing:.2px;margin:0}
+.user-form .page-header p{margin:.25rem 0 0;color:var(--uf-muted);font-size:.92rem}
+
+.user-form .form-card{
+  background:var(--uf-card-bg);
+  border:1px solid var(--uf-border);
+  border-radius:14px;
+  box-shadow:0 6px 18px rgba(17,24,39,.06);
+  overflow:hidden;
+}
+.user-form .form-card .card-body{padding:20px 22px}
+@media (min-width:992px){.user-form .form-card .card-body{padding:26px 28px}}
+
+.user-form .form-label{color:var(--uf-text);margin-bottom:.35rem}
+
+/* Inputs (con o sin .form-control) */
+.user-form input[type="text"],
+.user-form input[type="email"],
+.user-form input[type="password"],
+.user-form select,
+.user-form textarea,
+.user-form .form-control{
+  width:100%;
+  background:var(--uf-input-bg);
+  color:var(--uf-text);
+  border:1px solid var(--uf-border);
+  border-radius:10px;
+  padding:.55rem .8rem;
+  line-height:1.25;
+  transition:box-shadow .15s ease,border-color .15s ease,background-color .2s;
+}
+.user-form input:focus,
+.user-form select:focus,
+.user-form textarea:focus,
+.user-form .form-control:focus{
+  border-color:var(--uf-focus);
+  outline:0;
+  box-shadow:0 0 0 .2rem rgba(79,70,229,.15);
+}
+
+.user-form .form-text{color:var(--uf-muted)}
+.user-form .errorlist{margin:.35rem 0 0;padding-left:0;list-style:none}
+.user-form .errorlist li{color:#dc2626;font-size:.88rem}
+
+/* Acciones */
+.user-form .actions{display:flex;gap:.5rem;justify-content:flex-end}
+.user-form .btn{border-radius:10px;padding:.55rem .9rem}
+.user-form .btn-success{background:#16a34a;border-color:#169a47}
+.user-form .btn-success:hover{filter:brightness(.98)}
+.user-form .btn-light.border{background:#fff}
+.user-form .btn-back{border-radius:10px;padding:.45rem .7rem}

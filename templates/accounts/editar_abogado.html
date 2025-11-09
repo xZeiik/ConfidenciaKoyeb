@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/editar_abogado.css' %}">
+
+<div class="user-form container-fluid px-3 px-md-4">
+  <div class="d-flex justify-content-between align-items-center mb-4 page-header">
+    <div>
+      <h3 class="h4 mb-1">Editar usuario</h3>
+      <p class="text-muted small mb-0">
+        Modifica los datos de <span class="fw-semibold">@{{ usuario.username }}</span>.
+        {% if not usuario.is_active %}
+          <span class="badge text-bg-warning ms-1">Deshabilitado</span>
+        {% endif %}
+      </p>
+    </div>
+    <a href="{% url 'accounts:listar_abogados' %}" class="btn btn-outline-secondary btn-sm btn-back">
+      <i class="bi bi-arrow-left"></i> Volver
+    </a>
+  </div>
+
+  <div class="card form-card border-0 shadow-sm">
+    <div class="card-body">
+      <form method="post" class="row g-3">
+        {% csrf_token %}
+
+        {% for field in form %}
+          <div class="col-md-6">
+            <label for="{{ field.id_for_label }}" class="form-label fw-semibold">
+              {{ field.label }}
+            </label>
+            {{ field }}
+            {% if field.help_text %}
+              <div class="form-text">{{ field.help_text }}</div>
+            {% endif %}
+            {% for error in field.errors %}
+              <div class="text-danger small">{{ error }}</div>
+            {% endfor %}
+          </div>
+        {% endfor %}
+
+        <div class="col-12 d-flex justify-content-end gap-2 mt-2 actions">
+          <a href="{% url 'accounts:listar_abogados' %}" class="btn btn-light border">
+            <i class="bi bi-x-circle"></i> Cancelar
+          </a>
+          <button type="submit" class="btn btn-success">
+            <i class="bi bi-check2-circle"></i> Guardar cambios
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
