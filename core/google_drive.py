@@ -32,7 +32,12 @@ def _is_shared_drive_enabled() -> bool:
     v = os.getenv("GOOGLE_IS_SHARED_DRIVE", "").strip().lower()
     return v in ("1", "true", "yes")
 
-def _shared_drive_id() -> str:
+def _root_container_id() -> str:
+    """
+    Usamos la misma variable para compatibilidad.
+    Si apuntas a carpeta normal, coloca aquí el folderId.
+    Si apuntas a unidad compartida, coloca aquí el driveId y activa GOOGLE_IS_SHARED_DRIVE=true.
+    """
     return (
         getattr(settings, "GOOGLE_SHARED_DRIVE_ID", "")
         or os.getenv("GOOGLE_SHARED_DRIVE_ID", "")
@@ -40,12 +45,6 @@ def _shared_drive_id() -> str:
     ).strip()
 
 def _sa_file_path() -> Optional[str]:
-    """
-    Devuelve la ruta al service_account.json resolviendo en orden:
-    1) GOOGLE_APPLICATION_CREDENTIALS (ya resuelto por settings.py)
-    2) keys/service_account.json
-    3) GOOGLE_SERVICE_ACCOUNT_FILE explícito
-    """
     gac = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
     if gac and Path(gac).exists():
         return gac
@@ -69,12 +68,6 @@ def _sa_file_path() -> Optional[str]:
 # ---------------------------
 
 def _build_creds():
-    """
-    Prioriza Service Account (producción).
-    - JSON inline: GOOGLE_SERVICE_ACCOUNT_JSON
-    - Archivo: keys/service_account.json o GOOGLE_APPLICATION_CREDENTIALS/GOOGLE_SERVICE_ACCOUNT_FILE
-    Soporta impersonación con DRIVE_IMPERSONATE_EMAIL.
-    """
     sa_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
     imp = os.getenv("DRIVE_IMPERSONATE_EMAIL", "").strip()
 
@@ -94,7 +87,6 @@ def _build_creds():
     )
 
 def _svc():
-    # cache_discovery=False reduce IO en Azure
     return build("drive", "v3", credentials=_build_creds(), cache_discovery=False)
 
 def _with_drive_params(params: Dict) -> Dict:
@@ -102,10 +94,11 @@ def _with_drive_params(params: Dict) -> Dict:
     Añade parámetros de Shared Drive solo si GOOGLE_IS_SHARED_DRIVE=true.
     Si usas una carpeta normal (Mi unidad), no agrega nada.
     """
-    if _is_shared_drive_enabled() and _shared_drive_id():
+    root_id = _root_container_id()
+    if _is_shared_drive_enabled() and root_id:
         params.update({
             "corpora": "drive",
-            "driveId": _shared_drive_id(),
+            "driveId": root_id,
             "includeItemsFromAllDrives": True,
             "supportsAllDrives": True,
         })
@@ -125,14 +118,8 @@ def list_root(max_items: int = 10) -> List[Dict]:
     return service.files().list(**params).execute().get("files", [])
 
 def ensure_folder(name: str, parent_id: Optional[str] = None) -> str:
-    """
-    Crea (o devuelve) una carpeta con nombre `name`.
-    - Si hay Shared Drive y no pasas parent_id, usa la raíz de la unidad compartida.
-    - Si es carpeta normal y no pasas parent_id, se recomienda que _shared_drive_id()
-      apunte al folder raíz donde quieras trabajar (mi unidad -> carpeta).
-    """
     service = _svc()
-    effective_parent = parent_id or (_shared_drive_id() or None)
+    effective_parent = parent_id or (_root_container_id() or None)
 
     q = "mimeType='application/vnd.google-apps.folder' and trashed=false and name='%s'" % name
     if effective_parent:
@@ -148,7 +135,7 @@ def ensure_folder(name: str, parent_id: Optional[str] = None) -> str:
         body["parents"] = [effective_parent]
 
     create_params = {"body": body, "fields": "id"}
-    if _is_shared_drive_enabled() and _shared_drive_id():
+    if _is_shared_drive_enabled() and _root_container_id():
         create_params["supportsAllDrives"] = True
 
     return service.files().create(**create_params).execute()["id"]
@@ -156,25 +143,26 @@ def ensure_folder(name: str, parent_id: Optional[str] = None) -> str:
 def upload_file(local_path: str, filename: str, parent_id: Optional[str],
                 mime_type: str = "application/octet-stream") -> Dict:
     """
-    Sube un archivo. Si parent_id viene vacío, usa como fallback la carpeta configurada
-    en GOOGLE_SHARED_DRIVE_ID (que en tu caso es un folder normal de Mi unidad).
-    Esto evita subir al root de la SA (sin cuota) y corrige el 403.
+    Sube un archivo. Si parent_id viene vacío, usa como fallback el contenedor configurado.
+    Si tampoco hay contenedor, se lanza error para evitar subir al root de la SA (sin cuota).
     """
     service = _svc()
-    # Fallback al folder configurado si no viene parent_id
-    effective_parent = parent_id or (_shared_drive_id() or None)
+    effective_parent = parent_id or (_root_container_id() or None)
+    if not effective_parent:
+        raise RuntimeError(
+            "No se especificó parent_id y no hay carpeta/drive root configurado en GOOGLE_SHARED_DRIVE_ID. "
+            "Evito subir al root de la Service Account (sin cuota)."
+        )
 
     media = MediaFileUpload(local_path, mimetype=mime_type, resumable=True)
-    body = {"name": filename}
-    if effective_parent:
-        body["parents"] = [effective_parent]
+    body = {"name": filename, "parents": [effective_parent]}
 
     params = {
         "body": body,
         "media_body": media,
         "fields": "id,name,mimeType,webViewLink,webContentLink"
     }
-    if _is_shared_drive_enabled() and _shared_drive_id():
+    if _is_shared_drive_enabled() and _root_container_id():
         params["supportsAllDrives"] = True
 
     return service.files().create(**params).execute()
@@ -183,7 +171,7 @@ def download_file(file_id: str) -> bytes:
     service = _svc()
     req = service.files().get_media(
         fileId=file_id,
-        supportsAllDrives=bool(_is_shared_drive_enabled() and _shared_drive_id())
+        supportsAllDrives=bool(_is_shared_drive_enabled() and _root_container_id())
     )
     buf = io.BytesIO()
     downloader = MediaIoBaseDownload(buf, req)
@@ -194,10 +182,6 @@ def download_file(file_id: str) -> bytes:
     return buf.read()
 
 def list_files(parent_id: str, page_size: int = 100) -> List[Dict]:
-    """
-    Lista archivos no borrados dentro de una carpeta.
-    Soporta Shared Drive si GOOGLE_SHARED_DRIVE_ID está definido y habilitado.
-    """
     service = _svc()
     params = {
         "q": f"'{parent_id}' in parents and trashed=false",
@@ -206,3 +190,4 @@ def list_files(parent_id: str, page_size: int = 100) -> List[Dict]:
     }
     params = _with_drive_params(params)
     return service.files().list(**params).execute().get("files", [])
+
