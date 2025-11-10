@@ -24,6 +24,14 @@ def _keys_dir() -> Path:
     except Exception:
         return Path.cwd() / "keys"
 
+def _is_shared_drive_enabled() -> bool:
+    """
+    Controla si debemos tratar GOOGLE_SHARED_DRIVE_ID como una UNIDAD COMPARTIDA.
+    Por defecto False, así una carpeta normal funciona sin parámetros de shared drive.
+    """
+    v = os.getenv("GOOGLE_IS_SHARED_DRIVE", "").strip().lower()
+    return v in ("1", "true", "yes")
+
 def _shared_drive_id() -> str:
     return (
         getattr(settings, "GOOGLE_SHARED_DRIVE_ID", "")
@@ -91,13 +99,13 @@ def _svc():
 
 def _with_drive_params(params: Dict) -> Dict:
     """
-    Añade parámetros de Shared Drive si hay GOOGLE_SHARED_DRIVE_ID.
+    Añade parámetros de Shared Drive solo si GOOGLE_IS_SHARED_DRIVE=true.
+    Si usas una carpeta normal (Mi unidad), no agrega nada.
     """
-    shared_id = _shared_drive_id()
-    if shared_id:
+    if _is_shared_drive_enabled() and _shared_drive_id():
         params.update({
             "corpora": "drive",
-            "driveId": shared_id,
+            "driveId": _shared_drive_id(),
             "includeItemsFromAllDrives": True,
             "supportsAllDrives": True,
         })
@@ -138,7 +146,7 @@ def ensure_folder(name: str, parent_id: Optional[str] = None) -> str:
         body["parents"] = [effective_parent]
 
     create_params = {"body": body, "fields": "id"}
-    if _shared_drive_id():
+    if _is_shared_drive_enabled() and _shared_drive_id():
         create_params["supportsAllDrives"] = True
 
     return service.files().create(**create_params).execute()["id"]
@@ -148,13 +156,16 @@ def upload_file(local_path: str, filename: str, parent_id: Optional[str], mime_t
     media = MediaFileUpload(local_path, mimetype=mime_type, resumable=True)
     body = {"name": filename, "parents": [parent_id] if parent_id else []}
     params = {"body": body, "media_body": media, "fields": "id,name,mimeType,webViewLink,webContentLink"}
-    if _shared_drive_id():
+    if _is_shared_drive_enabled() and _shared_drive_id():
         params["supportsAllDrives"] = True
     return service.files().create(**params).execute()
 
 def download_file(file_id: str) -> bytes:
     service = _svc()
-    req = service.files().get_media(fileId=file_id, supportsAllDrives=bool(_shared_drive_id()))
+    req = service.files().get_media(
+        fileId=file_id,
+        supportsAllDrives=bool(_is_shared_drive_enabled() and _shared_drive_id())
+    )
     buf = io.BytesIO()
     downloader = MediaIoBaseDownload(buf, req)
     done = False
@@ -166,7 +177,7 @@ def download_file(file_id: str) -> bytes:
 def list_files(parent_id: str, page_size: int = 100) -> List[Dict]:
     """
     Lista archivos no borrados dentro de una carpeta.
-    Soporta Shared Drive si GOOGLE_SHARED_DRIVE_ID está definido.
+    Soporta Shared Drive si GOOGLE_SHARED_DRIVE_ID está definido y habilitado.
     """
     service = _svc()
     params = {
@@ -176,3 +187,4 @@ def list_files(parent_id: str, page_size: int = 100) -> List[Dict]:
     }
     params = _with_drive_params(params)
     return service.files().list(**params).execute().get("files", [])
+
