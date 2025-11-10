@@ -1,185 +1,173 @@
 # core/google_drive.py
 from __future__ import annotations
-
 import io, os, json
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional, Dict, List
 
 from django.conf import settings
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google.oauth2.credentials import Credentials
+from google.oauth2 import service_account
 from google.auth.transport.requests import Request as GoogleRequest
 
+# Permisos mínimos: archivos creados por tu app
 SCOPES = ["https://www.googleapis.com/auth/drive.file"]
 
-
-# ---------------------------
-# Rutas y helpers
-# ---------------------------
-
-def _keys_candidates() -> list[Path]:
-    """Posibles ubicaciones del directorio keys en local y Azure."""
-    cands = []
+# ---------- Helpers de rutas/vars ----------
+def _base_dir() -> Path:
     try:
-        cands.append(Path(settings.BASE_DIR) / "keys")  # paquete desplegado
+        return Path(settings.BASE_DIR)
     except Exception:
-        pass
-    cands.append(Path("/home/site/wwwroot/keys"))       # Azure wwwroot
-    cands.append(Path.cwd() / "keys")                   # fallback
-    # por si el usuario define algo explícito
-    env_dir = os.getenv("APP_KEYS_DIR", "").strip()
-    if env_dir:
-        cands.insert(0, Path(env_dir))
-    return cands
+        return Path.cwd()
 
-def _find_first(path_rel: str) -> Optional[Path]:
-    """Busca la primera coincidencia existente del path relativo en las carpetas candidates."""
-    # prioridad a una ruta absoluta en env
-    abs_env = os.getenv(path_rel.upper().replace("/", "_"), "").strip()
-    if abs_env and Path(abs_env).exists():
-        return Path(abs_env)
+def _keys_dir() -> Path:
+    return _base_dir() / "keys"
 
-    for base in _keys_candidates():
-        p = base / path_rel
-        if p.exists():
-            return p
+def _tokens_dir() -> Path:
+    # Puedes cambiarlo con GOOGLE_TOKENS_DIR (ya lo tienes en App Settings)
+    d = os.getenv("GOOGLE_TOKENS_DIR", str(_keys_dir() / "tokens")).strip()
+    p = Path(d)
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+def _token_path() -> Path:
+    # Nombre explícito para Drive
+    return _tokens_dir() / "token.json"
+
+def _client_secret_file() -> Optional[Path]:
+    # 1) Variable con JSON embebido
+    js = os.getenv("GOOGLE_OAUTH_CLIENT_SECRETS_JSON", "").strip()
+    if js:
+        tmp = _tokens_dir() / "client_secret_web.embedded.json"
+        tmp.write_text(js, encoding="utf-8")
+        return tmp
+
+    # 2) Archivo en /keys (convención local/prod)
+    f = _keys_dir() / "client_secret_web.json"
+    if f.exists():
+        return f
+
+    # 3) Ruta entregada por entorno (opcional)
+    env_path = os.getenv("GOOGLE_OAUTH_CLIENT_SECRETS_FILE", "").strip()
+    if env_path and Path(env_path).exists():
+        return Path(env_path)
+
     return None
 
-def _token_path() -> Optional[Path]:
-    # settings override
-    p = getattr(settings, "GOOGLE_TOKEN_FILE", "")
-    if p and Path(p).exists():
-        return Path(p)
-    # env override
-    p = os.getenv("GOOGLE_TOKEN_FILE", "").strip()
-    if p and Path(p).exists():
-        return Path(p)
-    # buscar en candidates
-    return _find_first("token.json")
+def _configured_root_folder() -> Optional[str]:
+    # Para CUENTA GMAIL normal: usa el ID de carpeta (no es shared drive)
+    folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID", "").strip()
+    return folder_id or None
 
-def _client_secret_path() -> Optional[str]:
-    # settings/env explícitos
-    for key in ("GOOGLE_OAUTH_CLIENT_SECRETS_FILE", "GOOGLE_OAUTH_CLIENT_FILE"):
-        p = getattr(settings, key, "") or os.getenv(key, "")
-        p = str(p).strip()
-        if p and Path(p).exists():
-            return p
-    # buscar archivo típico
-    p = _find_first("client_secret_web.json")
-    return str(p) if p else None
-
-def _sa_file_path() -> Optional[str]:
-    p = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "").strip()
-    if p and Path(p).exists():
-        return p
-    p2 = getattr(settings, "GOOGLE_SERVICE_ACCOUNT_FILE", "") or os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", "")
-    p2 = p2.strip()
-    if p2 and Path(p2).exists():
-        return p2
-    p3 = _find_first("service_account.json")
-    return str(p3) if p3 else None
-
-def _shared_drive_id() -> str:
-    return (
-        getattr(settings, "GOOGLE_SHARED_DRIVE_ID", "")
-        or os.getenv("GOOGLE_SHARED_DRIVE_ID", "")
-        or ""
-    ).strip()
-
-
-# ---------------------------
-# Credenciales
-# ---------------------------
-
-def _build_creds():
-    """
-    1) Usa token OAuth de usuario (keys/token.json o /home/site/wwwroot/keys/token.json).
-       - Refresca y reescribe si expira.
-    2) Si NO hay token y DEV_USE_OAUTH=1 → inicia flujo local (solo dev), necesita client_secret_web.json.
-    3) Si no, intenta Service Account (útil con Shared Drive o impersonación).
-    """
-    # 1) OAuth con token.json
-    tpath = _token_path()
-    if tpath and tpath.exists():
-        creds = Credentials.from_authorized_user_file(str(tpath), SCOPES)
-        if getattr(creds, "expired", False) and getattr(creds, "refresh_token", None):
-            creds.refresh(GoogleRequest())
-            tpath.parent.mkdir(parents=True, exist_ok=True)
-            tpath.write_text(creds.to_json(), encoding="utf-8")
-        return creds
-
-    # 2) Flujo OAuth local (solo si lo pides explícitamente)
-    if os.getenv("DEV_USE_OAUTH", "").lower() in ("1", "true", "yes"):
-        from google_auth_oauthlib.flow import InstalledAppFlow
-        client_path = _client_secret_path()
-        if not client_path:
-            raise RuntimeError("Falta keys/client_secret_web.json para iniciar OAuth (DEV_USE_OAUTH=1).")
-        flow = InstalledAppFlow.from_client_secrets_file(client_path, SCOPES)
-        creds = flow.run_local_server(port=0)
-        # guarda token para próximos despliegues
-        save_to = _token_path() or (_find_first("") or Path("/home/site/wwwroot/keys")) / "token.json"
-        save_to.parent.mkdir(parents=True, exist_ok=True)
-        save_to.write_text(creds.to_json(), encoding="utf-8")
-        return creds
-
-    # 3) Service Account (opcional)
-    sa_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
-    imp = os.getenv("DRIVE_IMPERSONATE_EMAIL", "").strip()
-    if sa_json:
-        from google.oauth2 import service_account
-        info = json.loads(sa_json)
-        creds = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
-        return creds.with_subject(imp) if imp else creds
-
-    sa_file = _sa_file_path()
-    if sa_file:
-        from google.oauth2 import service_account
-        creds = service_account.Credentials.from_service_account_file(sa_file, scopes=SCOPES)
-        return creds.with_subject(imp) if imp else creds
-
-    raise RuntimeError("No hay credenciales para Google Drive (token.json u objeto Service Account).")
-
-
-# ---------------------------
-# Servicio y utilitarios
-# ---------------------------
-
-def _svc():
-    return build("drive", "v3", credentials=_build_creds(), cache_discovery=False)
+def _is_shared_drive() -> bool:
+    # Desactívalo por defecto (tu caso es GMail normal)
+    v = os.getenv("GOOGLE_IS_SHARED_DRIVE", "").strip().lower()
+    return v in ("1", "true", "yes")
 
 def _with_drive_params(params: Dict) -> Dict:
-    sd = _shared_drive_id()
-    if sd:
+    # Si algún día usas UNA Unidad Compartida, rellena GOOGLE_SHARED_DRIVE_ID y activa GOOGLE_IS_SHARED_DRIVE
+    shared_id = getattr(settings, "GOOGLE_SHARED_DRIVE_ID", "") or os.getenv("GOOGLE_SHARED_DRIVE_ID", "")
+    shared_id = shared_id.strip()
+    if _is_shared_drive() and shared_id:
         params.update({
             "corpora": "drive",
-            "driveId": sd,
+            "driveId": shared_id,
             "includeItemsFromAllDrives": True,
             "supportsAllDrives": True,
         })
     return params
 
+# ---------- Construcción de credenciales ----------
+def _build_creds():
+    """
+    ORDEN:
+    1) Si existe keys/tokens/token.json => usar OAuth del usuario (y refrescar si hace falta).
+    2) Si NO existe el token:
+       - Si DEV_USE_OAUTH=1 y hay client_secret => PERMITIR flujo local (solo cuando DEBUG/CLI),
+         pero en servidor produciremos error claro para que subas el token.
+    3) Si nada de lo anterior, caer a Service Account (solo útil con Shared Drives o impersonación).
+    """
+    # 1) TOKEN PRIMERO (sirve tanto en local como en Azure)
+    token_path = _token_path()
+    if token_path.exists():
+        # token.json en formato de Credentials.to_json()
+        try:
+            creds = Credentials.from_authorized_user_file(str(token_path), SCOPES)
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(GoogleRequest())
+                token_path.write_text(creds.to_json(), encoding="utf-8")
+            return creds
+        except Exception:
+            # Si el token está corrupto, lo ignoramos para reintentar flujo/SA
+            pass
 
-# ---------------------------
-# Operaciones
-# ---------------------------
+    # 2) Flujo OAuth instalado (SOLO para correr en LOCAL y generar token.json)
+    if os.getenv("DEV_USE_OAUTH", "").strip().lower() in ("1", "true"):
+        client_file = _client_secret_file()
+        if not client_file:
+            raise RuntimeError("Falta keys/client_secret_web.json o GOOGLE_OAUTH_CLIENT_SECRETS_JSON para iniciar OAuth (DEV_USE_OAUTH=1).")
 
-def list_root(max_items=10) -> List[Dict]:
+        # Si estamos en Azure (WEBSITE_SITE_NAME definido), NO intentamos abrir navegador:
+        # Debes generar el token en local y subirlo a /home/site/wwwroot/keys/tokens/token.json
+        if os.getenv("WEBSITE_SITE_NAME"):
+            raise RuntimeError(
+                "OAuth interactivo no se ejecuta en Azure. "
+                "Genera token.json en tu equipo (python manage.py <comando_oauth_local>) "
+                "y súbelo a /home/site/wwwroot/keys/tokens/token.json."
+            )
+
+        # Local: ejecuta el flujo e instala token.json
+        from google_auth_oauthlib.flow import InstalledAppFlow
+        flow = InstalledAppFlow.from_client_secrets_file(str(client_file), SCOPES)
+        creds = flow.run_local_server(port=0)
+        token_path.parent.mkdir(parents=True, exist_ok=True)
+        token_path.write_text(creds.to_json(), encoding="utf-8")
+        return creds
+
+    # 3) Service Account (fallback)
+    sa_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
+    if sa_json:
+        info = json.loads(sa_json)
+        return service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+
+    sa_file = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", "").strip()
+    if sa_file and Path(sa_file).exists():
+        return service_account.Credentials.from_service_account_file(sa_file, scopes=SCOPES)
+
+    raise RuntimeError(
+        "No hay credenciales de Drive: sube keys/tokens/token.json (OAuth) "
+        "o configura GOOGLE_SERVICE_ACCOUNT_JSON/FILE."
+    )
+
+def _svc():
+    # cache_discovery=False reduce I/O
+    return build("drive", "v3", credentials=_build_creds(), cache_discovery=False)
+
+# ---------- Operaciones ----------
+def list_root(max_items: int = 10) -> List[Dict]:
     service = _svc()
-    params = dict(pageSize=max_items, fields="files(id,name,mimeType,modifiedTime,webViewLink)")
+    folder = _configured_root_folder()
+
+    if folder and not _is_shared_drive():
+        q = f"trashed=false and '{folder}' in parents"
+        params = {"q": q, "pageSize": max_items, "fields": "files(id,name,mimeType,parents,modifiedTime,webViewLink)"}
+        return service.files().list(**params).execute().get("files", [])
+
+    params = dict(pageSize=max_items, fields="files(id,name,mimeType,parents,modifiedTime,webViewLink)")
     params = _with_drive_params(params)
     return service.files().list(**params).execute().get("files", [])
 
 def ensure_folder(name: str, parent_id: Optional[str] = None) -> str:
     service = _svc()
-    effective_parent = parent_id or (_shared_drive_id() or None)
+    effective_parent = parent_id or _configured_root_folder()
 
     q = f"mimeType='application/vnd.google-apps.folder' and trashed=false and name='{name}'"
     if effective_parent:
         q += f" and '{effective_parent}' in parents"
 
-    search_params = _with_drive_params({"q": q, "fields": "files(id,name)"})
-    found = service.files().list(**search_params).execute().get("files", [])
+    params = _with_drive_params({"q": q, "fields": "files(id,name)"})
+    found = service.files().list(**params).execute().get("files", [])
     if found:
         return found[0]["id"]
 
@@ -188,27 +176,29 @@ def ensure_folder(name: str, parent_id: Optional[str] = None) -> str:
         body["parents"] = [effective_parent]
 
     create_params = {"body": body, "fields": "id"}
-    if _shared_drive_id():
+    if _is_shared_drive():
         create_params["supportsAllDrives"] = True
+
     return service.files().create(**create_params).execute()["id"]
 
-def upload_file(local_path: str, filename: str, parent_id: Optional[str],
-                mime_type: str = "application/octet-stream") -> Dict:
+def upload_file(local_path: str, filename: str, parent_id: Optional[str], mime_type="application/octet-stream") -> Dict:
     service = _svc()
+    effective_parent = parent_id or _configured_root_folder()
+    if not effective_parent:
+        raise RuntimeError("Debes configurar GOOGLE_DRIVE_FOLDER_ID o pasar parent_id para evitar subir al root.")
+
     media = MediaFileUpload(local_path, mimetype=mime_type, resumable=True)
-    body = {"name": filename}
-    if parent_id:
-        body["parents"] = [parent_id]
+    body = {"name": filename, "parents": [effective_parent]}
     params = {"body": body, "media_body": media, "fields": "id,name,mimeType,webViewLink,webContentLink"}
-    if _shared_drive_id():
+    if _is_shared_drive():
         params["supportsAllDrives"] = True
+
     return service.files().create(**params).execute()
 
 def download_file(file_id: str) -> bytes:
     service = _svc()
-    req = service.files().get_media(fileId=file_id, supportsAllDrives=bool(_shared_drive_id()))
+    req = service.files().get_media(fileId=file_id, supportsAllDrives=_is_shared_drive())
     buf = io.BytesIO()
-    from googleapiclient.http import MediaIoBaseDownload
     downloader = MediaIoBaseDownload(buf, req)
     done = False
     while not done:
@@ -225,3 +215,4 @@ def list_files(parent_id: str, page_size: int = 100) -> List[Dict]:
     }
     params = _with_drive_params(params)
     return service.files().list(**params).execute().get("files", [])
+
