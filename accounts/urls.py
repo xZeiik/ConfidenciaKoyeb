@@ -6,11 +6,17 @@ from . import views_calendar as gviews
 app_name = "accounts"
 
 urlpatterns = [
+    # ---- Autenticación ----
     path("login/", views.login_view, name="login"),
     path("logout/", views.logout_view, name="logout"),
     path("cuenta/", views.detalle_cuenta, name="detalle_cuenta"),
 
-    # Google Calendar
+    # ---- Gestión de abogados ----
+    path("abogados/", views.listar_abogados, name="listar_abogados"),
+    path("abogados/nuevo/", views.crear_abogado, name="crear_abogado"),
+    path("abogados/<int:pk>/editar/", views.editar_abogado, name="editar_abogado"),
+
+    # ---- Google Calendar ----
     path("google/connect/", gviews.conectar_google_calendar, name="google_connect"),
     path("google/reconnect/", gviews.google_reconnect, name="google_reconnect"),
     path("google/disconnect/", gviews.google_disconnect, name="google_disconnect"),
