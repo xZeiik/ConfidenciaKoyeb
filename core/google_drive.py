@@ -4,6 +4,7 @@ from __future__ import annotations
 import io
 import os
 import json
+import pickle
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -11,6 +12,8 @@ from django.conf import settings
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google.oauth2 import service_account
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request as GoogleRequest
 
 SCOPES = ["https://www.googleapis.com/auth/drive"]  # usa "drive.file" si quieres restringir
 
@@ -34,9 +37,9 @@ def _is_shared_drive_enabled() -> bool:
 
 def _root_container_id() -> str:
     """
-    Usamos la misma variable para compatibilidad.
-    Si apuntas a carpeta normal, coloca aquí el folderId.
-    Si apuntas a unidad compartida, coloca aquí el driveId y activa GOOGLE_IS_SHARED_DRIVE=true.
+    Contenedor raíz donde operar:
+      - FolderId de Mi unidad (carpeta normal)
+      - DriveId si usas unidad compartida (activar GOOGLE_IS_SHARED_DRIVE=true)
     """
     return (
         getattr(settings, "GOOGLE_SHARED_DRIVE_ID", "")
@@ -45,6 +48,12 @@ def _root_container_id() -> str:
     ).strip()
 
 def _sa_file_path() -> Optional[str]:
+    """
+    Devuelve la ruta al service_account.json resolviendo en orden:
+    1) GOOGLE_APPLICATION_CREDENTIALS
+    2) keys/service_account.json
+    3) GOOGLE_SERVICE_ACCOUNT_FILE
+    """
     gac = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
     if gac and Path(gac).exists():
         return gac
@@ -64,10 +73,33 @@ def _sa_file_path() -> Optional[str]:
     return None
 
 # ---------------------------
-# Credenciales (Service Account)
+# Credenciales (OAuth primero; SA fallback)
 # ---------------------------
 
+def _oauth_token_path() -> Path:
+    # settings.GOOGLE_TOKEN_FILE (p.ej. BASE_DIR/keys/token.json)
+    token_file = getattr(settings, "GOOGLE_TOKEN_FILE", "")
+    return Path(token_file) if token_file else (_keys_dir() / "token.json")
+
 def _build_creds():
+    """
+    Prioriza OAuth de usuario (token.json). Si no existe, usa Service Account.
+    - OAuth: sube con la cuota del usuario → evita 403 "Service Accounts do not have storage quota".
+    - SA: para automatizaciones o si configuraste impersonación en Workspace.
+    """
+    # 1) OAuth
+    token_path = _oauth_token_path()
+    if token_path.exists():
+        with open(token_path, "rb") as f:
+            creds: Credentials = pickle.load(f)
+        # Refresca si es necesario (si hay refresh_token)
+        if getattr(creds, "expired", False) and getattr(creds, "refresh_token", None):
+            creds.refresh(GoogleRequest())
+            with open(token_path, "wb") as f:
+                pickle.dump(creds, f)
+        return creds
+
+    # 2) Service Account (fallback)
     sa_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
     imp = os.getenv("DRIVE_IMPERSONATE_EMAIL", "").strip()
 
@@ -82,11 +114,13 @@ def _build_creds():
         return creds.with_subject(imp) if imp else creds
 
     raise RuntimeError(
-        "No hay credenciales de Google Drive (Service Account). "
-        "Define GOOGLE_SERVICE_ACCOUNT_JSON o sube keys/service_account.json."
+        "No hay credenciales para Google Drive: falta keys/token.json (OAuth) "
+        "y no se encontró Service Account. Autoriza en /cuentas/google/drive/connect/ "
+        "o configura la SA."
     )
 
 def _svc():
+    # cache_discovery=False reduce IO en Azure
     return build("drive", "v3", credentials=_build_creds(), cache_discovery=False)
 
 def _with_drive_params(params: Dict) -> Dict:
@@ -109,7 +143,23 @@ def _with_drive_params(params: Dict) -> Dict:
 # ---------------------------
 
 def list_root(max_items: int = 10) -> List[Dict]:
+    """
+    Lista elementos de la raíz lógica:
+      - Shared drive: raíz de la unidad
+      - Carpeta normal: hijos de esa carpeta
+      - Sin contenedor: lista raíz del identity actual (no recomendado)
+    """
     service = _svc()
+
+    # Si NO es shared drive y hay carpeta raíz, filtra por padre
+    root_id = _root_container_id()
+    if not _is_shared_drive_enabled() and root_id:
+        q = f"trashed=false and '{root_id}' in parents"
+        params = {"q": q, "pageSize": max_items,
+                  "fields": "files(id,name,mimeType,parents,modifiedTime,webViewLink)"}
+        return service.files().list(**params).execute().get("files", [])
+
+    # Shared drive o sin root_id → deja que Drive liste según contexto
     params = dict(
         pageSize=max_items,
         fields="files(id,name,mimeType,parents,modifiedTime,webViewLink)"
@@ -118,6 +168,12 @@ def list_root(max_items: int = 10) -> List[Dict]:
     return service.files().list(**params).execute().get("files", [])
 
 def ensure_folder(name: str, parent_id: Optional[str] = None) -> str:
+    """
+    Crea (o devuelve) una carpeta con nombre `name`.
+    - Si no pasas parent_id:
+        * Shared drive: usa raíz del drive (GOOGLE_SHARED_DRIVE_ID como driveId)
+        * Carpeta normal: usa el folderId configurado en GOOGLE_SHARED_DRIVE_ID
+    """
     service = _svc()
     effective_parent = parent_id or (_root_container_id() or None)
 
@@ -144,14 +200,15 @@ def upload_file(local_path: str, filename: str, parent_id: Optional[str],
                 mime_type: str = "application/octet-stream") -> Dict:
     """
     Sube un archivo. Si parent_id viene vacío, usa como fallback el contenedor configurado.
-    Si tampoco hay contenedor, se lanza error para evitar subir al root de la SA (sin cuota).
+    Si tampoco hay contenedor, lanza error para evitar subir al root de la SA (sin cuota).
+    Con OAuth NO hay problema de cuota; con SA sin impersonación, sí lo habría.
     """
     service = _svc()
     effective_parent = parent_id or (_root_container_id() or None)
     if not effective_parent:
         raise RuntimeError(
-            "No se especificó parent_id y no hay carpeta/drive root configurado en GOOGLE_SHARED_DRIVE_ID. "
-            "Evito subir al root de la Service Account (sin cuota)."
+            "No se especificó parent_id y no hay carpeta/drive root (GOOGLE_SHARED_DRIVE_ID). "
+            "Se evita subir al root por seguridad y para no topar la cuota de SA."
         )
 
     media = MediaFileUpload(local_path, mimetype=mime_type, resumable=True)
@@ -182,6 +239,10 @@ def download_file(file_id: str) -> bytes:
     return buf.read()
 
 def list_files(parent_id: str, page_size: int = 100) -> List[Dict]:
+    """
+    Lista archivos no borrados dentro de una carpeta.
+    Funciona igual para carpeta en Mi unidad y para carpetas dentro de una unidad compartida.
+    """
     service = _svc()
     params = {
         "q": f"'{parent_id}' in parents and trashed=false",
