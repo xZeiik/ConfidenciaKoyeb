@@ -128,6 +128,8 @@ def ensure_folder(name: str, parent_id: Optional[str] = None) -> str:
     """
     Crea (o devuelve) una carpeta con nombre `name`.
     - Si hay Shared Drive y no pasas parent_id, usa la raíz de la unidad compartida.
+    - Si es carpeta normal y no pasas parent_id, se recomienda que _shared_drive_id()
+      apunte al folder raíz donde quieras trabajar (mi unidad -> carpeta).
     """
     service = _svc()
     effective_parent = parent_id or (_shared_drive_id() or None)
@@ -151,13 +153,30 @@ def ensure_folder(name: str, parent_id: Optional[str] = None) -> str:
 
     return service.files().create(**create_params).execute()["id"]
 
-def upload_file(local_path: str, filename: str, parent_id: Optional[str], mime_type: str = "application/octet-stream") -> Dict:
+def upload_file(local_path: str, filename: str, parent_id: Optional[str],
+                mime_type: str = "application/octet-stream") -> Dict:
+    """
+    Sube un archivo. Si parent_id viene vacío, usa como fallback la carpeta configurada
+    en GOOGLE_SHARED_DRIVE_ID (que en tu caso es un folder normal de Mi unidad).
+    Esto evita subir al root de la SA (sin cuota) y corrige el 403.
+    """
     service = _svc()
+    # Fallback al folder configurado si no viene parent_id
+    effective_parent = parent_id or (_shared_drive_id() or None)
+
     media = MediaFileUpload(local_path, mimetype=mime_type, resumable=True)
-    body = {"name": filename, "parents": [parent_id] if parent_id else []}
-    params = {"body": body, "media_body": media, "fields": "id,name,mimeType,webViewLink,webContentLink"}
+    body = {"name": filename}
+    if effective_parent:
+        body["parents"] = [effective_parent]
+
+    params = {
+        "body": body,
+        "media_body": media,
+        "fields": "id,name,mimeType,webViewLink,webContentLink"
+    }
     if _is_shared_drive_enabled() and _shared_drive_id():
         params["supportsAllDrives"] = True
+
     return service.files().create(**params).execute()
 
 def download_file(file_id: str) -> bytes:
@@ -187,4 +206,3 @@ def list_files(parent_id: str, page_size: int = 100) -> List[Dict]:
     }
     params = _with_drive_params(params)
     return service.files().list(**params).execute().get("files", [])
-
