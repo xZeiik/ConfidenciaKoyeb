@@ -12,10 +12,11 @@ if DEBUG:
 
 APP_BASE_URL = os.getenv("APP_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 
-ALLOWED_HOSTS = os.getenv(
-    "ALLOWED_HOSTS",
-    ".azurewebsites.net,localhost,127.0.0.1"
-).split(",")
+ALLOWED_HOSTS = [
+    'confidencia-dygzfpgvf2egd4a9.chilecentral-01.azurewebsites.net',
+    'localhost',
+    '127.0.0.1',
+]
 
 CSRF_TRUSTED_ORIGINS = list({
     os.getenv("CSRF_ORIGIN", APP_BASE_URL),
@@ -38,7 +39,7 @@ INSTALLED_APPS = [
 # ===== Middleware =====
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    *([] if DEBUG else ["whitenoise.middleware.WhiteNoiseMiddleware"]),
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # Siempre después de SecurityMiddleware
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -137,3 +138,4 @@ if GOOGLE_SERVICE_ACCOUNT_JSON and not GOOGLE_SERVICE_ACCOUNT_FILE:
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(sa_path)
 elif GOOGLE_SERVICE_ACCOUNT_FILE:
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = GOOGLE_SERVICE_ACCOUNT_FILE
+
