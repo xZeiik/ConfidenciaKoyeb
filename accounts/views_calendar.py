@@ -20,17 +20,49 @@ CAL_SCOPE = "https://www.googleapis.com/auth/calendar"
 SCOPES = [CAL_SCOPE]
 
 def _load_client_config():
+    """
+    Orden:
+      1) GOOGLE_OAUTH_CLIENT_SECRETS_JSON  (contenido JSON)
+      2) GOOGLE_OAUTH_CLIENT_SECRETS_FILE  (ruta a archivo)
+      3) Fallback: construir con GOOGLE_OAUTH_CLIENT_ID/SECRET + GOOGLE_REDIRECT_URI
+    """
+    # 1) JSON embebido
     js = getattr(settings, "GOOGLE_OAUTH_CLIENT_SECRETS_JSON", "") or os.getenv("GOOGLE_OAUTH_CLIENT_SECRETS_JSON", "")
     if js:
         try:
             return json.loads(js)
         except Exception:
             pass
+
+    # 2) Ruta a archivo
     path = getattr(settings, "GOOGLE_OAUTH_CLIENT_SECRETS_FILE", "") or os.getenv("GOOGLE_OAUTH_CLIENT_SECRETS_FILE", "")
     if path and os.path.exists(path):
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
+
+    # 3) Fallback con ID/SECRET + redirect
+    cid = getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "") or os.getenv("GOOGLE_OAUTH_CLIENT_ID", "")
+    csec = getattr(settings, "GOOGLE_OAUTH_CLIENT_SECRET", "") or os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "")
+    redirect_uri = getattr(settings, "GOOGLE_REDIRECT_URI", "") or os.getenv("GOOGLE_REDIRECT_URI", "")
+    if cid and csec and redirect_uri:
+        # Estructura exacta que espera google_auth_oauthlib
+        return {
+            "web": {
+                "client_id": cid,
+                "project_id": "confidencia",
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                "client_secret": csec,
+                "redirect_uris": [redirect_uri],
+                "javascript_origins": [
+                    redirect_uri.rsplit("/accounts/google/callback/", 1)[0]
+                ],
+            }
+        }
+
     return None
+
 
 def _redirect_uri(request):
     return request.build_absolute_uri(reverse("accounts:google_callback"))
