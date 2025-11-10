@@ -25,8 +25,10 @@ from .permissions import is_admin, puede_subir_caso, puede_ver_caso
 def _client_ip(request):
     xff = request.META.get("HTTP_X_FORWARDED_FOR")
     if xff:
-        return xff.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR")
+        # Remover puerto si existe (ej: "179.60.70.50:48431" → "179.60.70.50")
+        return xff.split(",")[0].strip().split(":")[0]
+    remote = request.META.get("REMOTE_ADDR", "")
+    return remote.split(":")[0] if remote else ""
 
 
 def log_evento(caso, accion, request=None, archivo=None, detalle=""):
