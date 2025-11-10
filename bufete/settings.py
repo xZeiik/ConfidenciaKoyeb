@@ -6,6 +6,14 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+KEYS_DIR = BASE_DIR / "keys"
+
+# Si existen archivos físicos en /keys, los tomará automáticamente
+GOOGLE_SERVICE_ACCOUNT_FILE = str(KEYS_DIR / "service_account.json")
+GOOGLE_OAUTH_CLIENT_SECRETS_FILE = str(KEYS_DIR / "client_secret_web.json")
+GOOGLE_TOKEN_FILE = str(KEYS_DIR / "token.json")
+
+
 # ===== Entorno / seguridad =====
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me")
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
@@ -131,12 +139,32 @@ LOGGING = {
     "root": {"handlers": ["console"], "level": os.getenv("LOG_LEVEL", "INFO")},
 }
 
-# ===== Google Calendar (OAuth por usuario) =====
+# ===== Google Integrations =====
+
+# === Google Drive (Service Account centralizada) ===
+GOOGLE_SHARED_DRIVE_ID = os.getenv("GOOGLE_SHARED_DRIVE_ID", "").strip()
+
+# Prioriza: variable JSON → archivo en /keys → ruta de entorno
+GOOGLE_SERVICE_ACCOUNT_JSON = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
+GOOGLE_SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", "").strip()
+
+if GOOGLE_SERVICE_ACCOUNT_JSON:
+    sa_path = Path(tempfile.gettempdir()) / "google_sa.json"
+    sa_path.write_text(GOOGLE_SERVICE_ACCOUNT_JSON, encoding="utf-8")
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(sa_path)
+elif (KEYS_DIR / "service_account.json").exists():
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(KEYS_DIR / "service_account.json")
+elif GOOGLE_SERVICE_ACCOUNT_FILE:
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = GOOGLE_SERVICE_ACCOUNT_FILE
+
+
+# === Google OAuth (Calendar por usuario) ===
 GOOGLE_REDIRECT_URI = os.getenv(
     "GOOGLE_REDIRECT_URI",
     APP_BASE_URL + "/accounts/google/callback/"
 )
 
+# Scopes dinámicos según permisos de escritura
 GOOGLE_CALENDAR_SCOPES = (
     ["https://www.googleapis.com/auth/calendar.events"]
     if os.getenv("GOOGLE_CAL_RW", "0") == "1"
@@ -146,34 +174,21 @@ GOOGLE_CALENDAR_SCOPES = (
 GOOGLE_OAUTH_CLIENT_ID = os.getenv("GOOGLE_OAUTH_CLIENT_ID", "")
 GOOGLE_OAUTH_CLIENT_SECRET = os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "")
 
-# Compat: acepta ambos nombres de variable para el JSON del cliente
+# Prioriza JSON embebido → archivo en /keys → variable de ruta
 _raw_oauth_json = (
     os.getenv("GOOGLE_OAUTH_CLIENT_SECRETS_JSON", "").strip()
     or os.getenv("GOOGLE_OAUTH_CLIENT_JSON", "").strip()
 )
 
-# Ruta/archivo que usarán las vistas si requieren un client_secrets.json físico
-GOOGLE_OAUTH_SECRETS_RESOLVED = ""
 if _raw_oauth_json:
     tmp = Path(tempfile.gettempdir()) / "google_oauth_client_secret.json"
     tmp.write_text(_raw_oauth_json, encoding="utf-8")
-    GOOGLE_OAUTH_SECRETS_RESOLVED = str(tmp)
+    GOOGLE_OAUTH_CLIENT_SECRETS_FILE = str(tmp)
+elif (KEYS_DIR / "client_secret_web.json").exists():
+    GOOGLE_OAUTH_CLIENT_SECRETS_FILE = str(KEYS_DIR / "client_secret_web.json")
+else:
+    GOOGLE_OAUTH_CLIENT_SECRETS_FILE = os.getenv("GOOGLE_OAUTH_CLIENT_SECRETS_FILE", "").strip()
 
-# Para código que espera nombres concretos:
-GOOGLE_OAUTH_CLIENT_SECRETS_JSON = _raw_oauth_json  # contenido (si existe)
-GOOGLE_OAUTH_CLIENT_SECRETS_FILE = os.getenv("GOOGLE_OAUTH_CLIENT_SECRETS_FILE", "").strip() or GOOGLE_OAUTH_SECRETS_RESOLVED
-
-# ===== Google Drive (Service Account, centralizado) =====
-GOOGLE_SHARED_DRIVE_ID = os.getenv("GOOGLE_SHARED_DRIVE_ID", "").strip()
-
-# Acepta JSON inline o ruta a archivo
-GOOGLE_SERVICE_ACCOUNT_JSON = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", "").strip()
-GOOGLE_SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", "").strip()
-
-if GOOGLE_SERVICE_ACCOUNT_JSON and not GOOGLE_SERVICE_ACCOUNT_FILE:
-    sa_path = Path(tempfile.gettempdir()) / "google_sa.json"
-    sa_path.write_text(GOOGLE_SERVICE_ACCOUNT_JSON, encoding="utf-8")
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(sa_path)
-elif GOOGLE_SERVICE_ACCOUNT_FILE:
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = GOOGLE_SERVICE_ACCOUNT_FILE
-
+# Exposición para compatibilidad con vistas existentes
+GOOGLE_OAUTH_CLIENT_SECRETS_JSON = _raw_oauth_json
+GOOGLE_OAUTH_SECRETS_RESOLVED = GOOGLE_OAUTH_CLIENT_SECRETS_FILE
