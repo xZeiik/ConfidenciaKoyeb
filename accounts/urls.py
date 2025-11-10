@@ -2,6 +2,8 @@
 from django.urls import path
 from . import views
 from . import views_calendar as gviews
+from . import views_drive_oauth as dviews
+
 
 app_name = "accounts"
 
@@ -26,4 +28,12 @@ urlpatterns = [
     path("google/eventos/<str:event_id>/", gviews.gcal_event_detail, name="gcal_event_detail"),
     path("google/eventos/<str:event_id>/editar/", gviews.gcal_event_edit, name="gcal_event_edit"),
     path("google/eventos/<str:event_id>/eliminar/", gviews.gcal_event_delete, name="gcal_event_delete"),
+
+        # ---- OAuth de Google Drive (separado de Calendar) ----
+    path("google/drive/connect/", dviews.google_drive_connect, name="google_drive_connect"),
+    path("google/drive/callback/", dviews.google_drive_callback, name="google_drive_callback"),
+    path("google/drive/disconnect/", dviews.google_drive_disconnect, name="google_drive_disconnect"),
+
+    # Diagnóstico opcional (ya lo tenías apuntando a dviews)
+    path("google/whoami/", dviews.google_whoami, name="google_whoami"),    
 ]
