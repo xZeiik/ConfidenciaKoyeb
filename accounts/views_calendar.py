@@ -5,12 +5,10 @@ from datetime import datetime
 
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
-from django.views.decorators.http import require_POST
 
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
@@ -19,76 +17,45 @@ from google.auth.transport.requests import Request as GoogleRequest
 from google.auth.exceptions import RefreshError, GoogleAuthError
 from googleapiclient.errors import HttpError
 
+from django.contrib.auth.decorators import login_required
 from .models import GoogleOAuthToken
 
 
-# ---------- Scopes ----------
+# ---- Scopes: SOLO Calendar (lectura/creación/edición)
 CAL_SCOPE = "https://www.googleapis.com/auth/calendar"
 SCOPES = [CAL_SCOPE]
 
 
-# ---------- Helpers de configuración ----------
+# =========================
+# Helpers configuración
+# =========================
 def _load_client_config():
     """
-    Orden de resolución:
-      1) GOOGLE_OAUTH_CLIENT_SECRETS_JSON (contenido JSON)
-      2) GOOGLE_OAUTH_CLIENT_SECRETS_FILE (ruta a archivo)
-      3) Fallback con GOOGLE_OAUTH_CLIENT_ID/GOOGLE_OAUTH_CLIENT_SECRET/GOOGLE_REDIRECT_URI
+    1) Intenta GOOGLE_OAUTH_CLIENT_SECRETS_JSON (contenido JSON)
+    2) Luego GOOGLE_OAUTH_CLIENT_SECRETS_FILE (ruta a archivo)
     """
-    js = (
-        getattr(settings, "GOOGLE_OAUTH_CLIENT_SECRETS_JSON", "")
-        or os.getenv("GOOGLE_OAUTH_CLIENT_SECRETS_JSON", "")
-    )
+    js = getattr(settings, "GOOGLE_OAUTH_CLIENT_SECRETS_JSON", "") or os.getenv("GOOGLE_OAUTH_CLIENT_SECRETS_JSON", "")
     if js:
         try:
             return json.loads(js)
         except Exception:
             pass
 
-    path = (
-        getattr(settings, "GOOGLE_OAUTH_CLIENT_SECRETS_FILE", "")
-        or os.getenv("GOOGLE_OAUTH_CLIENT_SECRETS_FILE", "")
-    )
+    path = getattr(settings, "GOOGLE_OAUTH_CLIENT_SECRETS_FILE", "") or os.getenv("GOOGLE_OAUTH_CLIENT_SECRETS_FILE", "")
     if path and os.path.exists(path):
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
 
-    cid = getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "") or os.getenv("GOOGLE_OAUTH_CLIENT_ID", "")
-    csec = getattr(settings, "GOOGLE_OAUTH_CLIENT_SECRET", "") or os.getenv("GOOGLE_OAUTH_CLIENT_SECRET", "")
-    redirect_uri = (
-        getattr(settings, "GOOGLE_REDIRECT_URI", "")
-        or os.getenv("GOOGLE_REDIRECT_URI", "")
-    )
-    if cid and csec and redirect_uri:
-        rid = redirect_uri.rstrip("/") + "/"
-        origin = rid.rsplit("/accounts/google/callback/", 1)[0]
-        return {
-            "web": {
-                "client_id": cid,
-                "project_id": "confidencia",
-                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                "token_uri": "https://oauth2.googleapis.com/token",
-                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-                "client_secret": csec,
-                "redirect_uris": [rid],
-                "javascript_origins": [origin],
-            }
-        }
-
     return None
 
 
-def _redirect_uri(_request):
-    """Devuelve SIEMPRE la redirect con slash final (debe coincidir con la de Google Cloud)."""
-    rid = (
-        getattr(settings, "GOOGLE_REDIRECT_URI", "")
-        or os.getenv("GOOGLE_REDIRECT_URI", "")
-        or ""
-    )
-    return rid.rstrip("/") + "/"
+def _redirect_uri(request):
+    # Debe coincidir exactamente con lo registrado en Google Cloud Console
+    return request.build_absolute_uri(reverse("accounts:google_callback"))
 
 
 def _fmt_dt(value):
+    """Formatea dateTime/date de Google a algo legible."""
     if not value:
         return "—"
     if "dateTime" in value and value["dateTime"]:
@@ -102,7 +69,6 @@ def _fmt_dt(value):
     return "—"
 
 
-# ---------- Helpers de almacenamiento de credenciales ----------
 def _db_get_user_creds(user):
     try:
         tok = GoogleOAuthToken.objects.get(user=user)
@@ -112,9 +78,10 @@ def _db_get_user_creds(user):
 
 
 def _db_save_user_creds(user, creds):
+    data = creds.to_json()
     GoogleOAuthToken.objects.update_or_create(
         user=user,
-        defaults={"credentials_json": creds.to_json()},
+        defaults={"credentials_json": data},
     )
 
 
@@ -122,7 +89,11 @@ def _db_clear_user_creds(user):
     GoogleOAuthToken.objects.filter(user=user).delete()
 
 
+# =========================
+# Helpers OAuth / sesión
+# =========================
 def _clear_google_session(request):
+    """Elimina claves de sesión relacionadas a OAuth para evitar loops."""
     for k in ("google_creds", "google_oauth_state", "google_oauth_redirect_uri", "oauth_retry_once"):
         request.session.pop(k, None)
     request.session.modified = True
@@ -130,13 +101,13 @@ def _clear_google_session(request):
 
 def _get_valid_creds(request):
     """
-    1) Intenta sesión
-    2) Si no hay, intenta BD por usuario
-    3) Si expira y hay refresh_token, refresca y persiste
-    4) Verifica scope Calendar
+    1) Intenta sesión (rápido).
+    2) Si no hay, intenta BD por usuario.
+    3) Si expira y hay refresh_token, refresca y guarda de vuelta (sesión + BD).
     """
     creds = None
 
+    # 1) sesión
     data = request.session.get("google_creds")
     if data:
         try:
@@ -144,6 +115,7 @@ def _get_valid_creds(request):
         except Exception:
             creds = None
 
+    # 2) BD
     if not creds and request.user.is_authenticated:
         creds = _db_get_user_creds(request.user)
         if creds:
@@ -152,14 +124,17 @@ def _get_valid_creds(request):
     if not creds:
         return None
 
+    # Refresh si corresponde
     if creds.expired:
         if not creds.refresh_token:
             return None
         creds.refresh(GoogleRequest())
+        # persistir
         request.session["google_creds"] = creds.to_json()
         if request.user.is_authenticated:
             _db_save_user_creds(request.user, creds)
 
+    # Verificar scope mínimo
     scopes = set(getattr(creds, "scopes", []) or [])
     if CAL_SCOPE not in scopes and not any(s.startswith(CAL_SCOPE + ".") for s in scopes):
         return None
@@ -167,9 +142,15 @@ def _get_valid_creds(request):
     return creds
 
 
-# ---------- Flujo OAuth ----------
+# =========================
+# Flujo OAuth
+# =========================
 @login_required
 def conectar_google_calendar(request):
+    """
+    Inicia el flujo OAuth en Google.
+    Si ya hay credenciales válidas, redirige a listado (evita bucle).
+    """
     try:
         existing = _get_valid_creds(request)
         if existing and not existing.expired:
@@ -177,6 +158,7 @@ def conectar_google_calendar(request):
     except Exception:
         pass
 
+    # Limpiar estado previo del flujo
     request.session.pop("google_oauth_state", None)
     request.session.pop("google_oauth_redirect_uri", None)
 
@@ -185,17 +167,15 @@ def conectar_google_calendar(request):
         messages.error(request, "No se encontraron credenciales OAuth de Google.")
         return redirect("accounts:gcal_eventos")
 
-    rid = _redirect_uri(request)  # con slash final
-    flow = Flow.from_client_config(cfg, scopes=SCOPES, redirect_uri=rid)
-
+    flow = Flow.from_client_config(cfg, scopes=SCOPES, redirect_uri=_redirect_uri(request))
+    # No usamos include_granted_scopes para evitar unión con otros permisos (Drive, etc.)
     auth_url, state = flow.authorization_url(
         access_type="offline",
-        prompt="consent",
-        # include_granted_scopes=False  # evitar uniones de scopes antiguos
+        prompt="consent",  # asegura refresh_token en dev
+        # include_granted_scopes="true",  # ❌ NO usar, provoca “Scope has changed…”
     )
-
     request.session["google_oauth_state"] = state
-    request.session["google_oauth_redirect_uri"] = rid
+    request.session["google_oauth_redirect_uri"] = _redirect_uri(request)
     request.session.modified = True
     return redirect(auth_url)
 
@@ -207,12 +187,12 @@ def google_callback(request):
         return redirect("accounts:gcal_eventos")
 
     state = request.session.get("google_oauth_state")
-    rid = request.session.get("google_oauth_redirect_uri")  # misma redirect usada al iniciar
-    if not state or not rid:
+    redirect_uri = request.session.get("google_oauth_redirect_uri")
+    if not state or not redirect_uri:
         messages.error(request, "Sesión OAuth inválida. Vuelve a conectar el calendario.")
         return redirect("accounts:gcal_eventos")
 
-    flow = Flow.from_client_config(cfg, scopes=SCOPES, state=state, redirect_uri=rid)
+    flow = Flow.from_client_config(cfg, scopes=SCOPES, state=state, redirect_uri=redirect_uri)
     try:
         flow.fetch_token(authorization_response=request.build_absolute_uri())
     except GoogleAuthError as e:
@@ -223,11 +203,12 @@ def google_callback(request):
         return redirect("accounts:gcal_eventos")
 
     creds = flow.credentials
-    if not getattr(creds, "refresh_token", None):
+    if not creds.refresh_token:
         request.session.pop("google_creds", None)
         messages.warning(request, "No se recibió refresh_token. Vuelve a conectar y acepta permisos.")
         return redirect("accounts:gcal_eventos")
 
+    # Guarda en sesión (opcional) y BD (persistente por usuario)
     request.session["google_creds"] = creds.to_json()
     if request.user.is_authenticated:
         _db_save_user_creds(request.user, creds)
@@ -240,7 +221,7 @@ def google_callback(request):
 def google_disconnect(request):
     _clear_google_session(request)
     if request.user.is_authenticated:
-        _db_clear_user_creds(request.user)
+        _db_clear_user_creds(request.user)  # ← borra vinculación permanente
     messages.info(request, "Se desconectó Google Calendar.")
     return redirect("accounts:gcal_eventos")
 
@@ -249,15 +230,22 @@ def google_disconnect(request):
 def google_reconnect(request):
     _clear_google_session(request)
     if request.user.is_authenticated:
-        _db_clear_user_creds(request.user)
+        _db_clear_user_creds(request.user)  # limpia también BD
     messages.info(request, "Vamos a reconectar Google Calendar.")
     return redirect("accounts:google_connect")
 
 
-# ---------- Vistas de eventos ----------
+# =========================
+# Vistas de eventos
+# =========================
 @login_required
 def gcal_eventos(request):
-    connected, events, error_msg = False, [], None
+    """
+    Si no hay token válido, NO redirige automáticamente: muestra página con botones.
+    """
+    connected = False
+    events = []
+    error_msg = None
 
     creds = _get_valid_creds(request)
     if creds:
@@ -285,14 +273,14 @@ def gcal_eventos(request):
         "events": events,
         "connected": connected,
         "error_msg": error_msg,
-        "_fmt_dt": _fmt_dt,
+        "_fmt_dt": _fmt_dt,  # por si quieres usarlo en el template
     }
     return render(request, "accounts/gcal_eventos.html", ctx)
 
 
-@login_required
 @require_http_methods(["GET", "POST"])
 def gcal_crear_evento(request):
+    """Crea un nuevo evento en Google Calendar."""
     if request.method == "POST":
         try:
             creds = _get_valid_creds(request)
@@ -310,12 +298,12 @@ def gcal_crear_evento(request):
             tz = "America/Santiago"
             if "all_day" in request.POST:
                 start = {"date": request.POST.get("start_date"), "timeZone": tz}
-                end = {"date": request.POST.get("end_date"), "timeZone": tz}
+                end   = {"date": request.POST.get("end_date"),   "timeZone": tz}
             else:
                 start_dt = datetime.fromisoformat(request.POST.get("start_dt"))
-                end_dt = datetime.fromisoformat(request.POST.get("end_dt"))
+                end_dt   = datetime.fromisoformat(request.POST.get("end_dt"))
                 start = {"dateTime": start_dt.isoformat(), "timeZone": tz}
-                end = {"dateTime": end_dt.isoformat(), "timeZone": tz}
+                end   = {"dateTime": end_dt.isoformat(),   "timeZone": tz}
 
             attendees_raw = (request.POST.get("attendees") or "").strip()
             attendees = [{"email": e.strip()} for e in attendees_raw.split(",") if e.strip()]
@@ -355,10 +343,12 @@ def gcal_crear_evento(request):
             messages.error(request, f"Error al crear el evento: {e}")
             return redirect("accounts:gcal_eventos")
 
+    # GET -> formulario
     return render(request, "accounts/gcal_crear_evento.html")
 
 
 def _event_initial_from_google(event):
+    """Mapea el evento de Google a initial para el formulario de edición."""
     init = {
         "summary": event.get("summary", ""),
         "location": event.get("location", ""),
@@ -384,8 +374,43 @@ def _event_initial_from_google(event):
 
 
 @login_required
+def gcal_event_detail(request, event_id):
+    """Muestra detalle de un evento (acepta ?calendar_id=..., por defecto 'primary')."""
+    calendar_id = request.GET.get("calendar_id", "primary")
+    try:
+        creds = _get_valid_creds(request)
+        if not creds:
+            messages.error(request, "Primero debes conectar tu Google Calendar.")
+            return redirect("accounts:gcal_eventos")
+
+        service = build("calendar", "v3", credentials=creds)
+        event = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
+
+        ctx = {
+            "event": event,
+            "calendar_id": calendar_id,
+            "start_txt": _fmt_dt(event.get("start")),
+            "end_txt": _fmt_dt(event.get("end")),
+            "attendees": event.get("attendees", []),
+            "reminders": event.get("reminders", {}),
+        }
+        return render(request, "accounts/gcal_event_detail.html", ctx)
+
+    except RefreshError:
+        messages.error(request, "El token fue revocado o expiró. Vuelve a conectar tu Google Calendar.")
+        _clear_google_session(request)
+        return redirect("accounts:google_connect")
+    except HttpError as e:
+        messages.error(request, f"No se pudo obtener el evento: {e}")
+        return redirect("accounts:gcal_eventos")
+    except Exception as e:
+        messages.error(request, f"Error: {e}")
+        return redirect("accounts:gcal_eventos")
+
+
 @require_http_methods(["GET", "POST"])
 def gcal_event_edit(request, event_id):
+    """Edita un evento existente (acepta ?calendar_id=..., por defecto 'primary')."""
     calendar_id = request.GET.get("calendar_id", "primary")
     try:
         creds = _get_valid_creds(request)
@@ -405,12 +430,12 @@ def gcal_event_edit(request, event_id):
             tz = "America/Santiago"
             if "all_day" in request.POST:
                 start = {"date": request.POST.get("start_date"), "timeZone": tz}
-                end = {"date": request.POST.get("end_date"), "timeZone": tz}
+                end   = {"date": request.POST.get("end_date"),   "timeZone": tz}
             else:
                 start_dt = datetime.fromisoformat(request.POST.get("start_dt"))
-                end_dt = datetime.fromisoformat(request.POST.get("end_dt"))
+                end_dt   = datetime.fromisoformat(request.POST.get("end_dt"))
                 start = {"dateTime": start_dt.isoformat(), "timeZone": tz}
-                end = {"dateTime": end_dt.isoformat(), "timeZone": tz}
+                end   = {"dateTime": end_dt.isoformat(),   "timeZone": tz}
 
             attendees_raw = (request.POST.get("attendees") or "").strip()
             attendees = [{"email": e.strip()} for e in attendees_raw.split(",") if e.strip()]
@@ -438,6 +463,7 @@ def gcal_event_edit(request, event_id):
             messages.success(request, "Evento actualizado correctamente.")
             return redirect(f"{reverse('accounts:gcal_event_detail', args=[event_id])}?calendar_id={calendar_id}")
 
+        # GET: pintar formulario con datos actuales
         initial = _event_initial_from_google(event)
         return render(
             request,
@@ -457,9 +483,12 @@ def gcal_event_edit(request, event_id):
         return redirect("accounts:gcal_eventos")
 
 
+from django.views.decorators.http import require_POST
+
 @require_POST
 @login_required
 def gcal_event_delete(request, event_id):
+    """Elimina un evento. Recibe calendar_id en POST (por defecto 'primary')."""
     calendar_id = request.POST.get("calendar_id", "primary")
     try:
         creds = _get_valid_creds(request)
@@ -467,10 +496,7 @@ def gcal_event_delete(request, event_id):
             messages.error(request, "Primero debes conectar tu Google Calendar.")
             return redirect("accounts:gcal_eventos")
 
-        build("calendar", "v3", credentials=creds).events().delete(
-            calendarId=calendar_id, eventId=event_id
-        ).execute()
-
+        build("calendar", "v3", credentials=creds).events().delete(calendarId=calendar_id, eventId=event_id).execute()
         messages.success(request, "Evento eliminado.")
         return redirect("accounts:gcal_eventos")
 
@@ -484,6 +510,7 @@ def gcal_event_delete(request, event_id):
     except Exception as e:
         messages.error(request, f"Error: {e}")
         return redirect("accounts:gcal_eventos")
+
 
 
 
